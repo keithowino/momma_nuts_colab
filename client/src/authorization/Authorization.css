@@ -1,0 +1,264 @@
+/* the below 6 codes are my color paletes for the page being designed
+
+#FF3CB0
+#F7941D
+#F1531C
+#F7A720
+#4B1E0E
+#F7941D */
+
+Full Page Styling
+/* .signupContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  border: 2px black solid;
+  background-color: #f8f9fd;
+} */
+
+/* Card Container
+.signupCard {
+  display: flex;
+  width: 800px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  align-self: center;
+} */
+
+/* Left Side - Image Section */
+/* .signupLeft {
+  width: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6e8efb, #a777e3);
+} */
+
+/* Placeholder for image */
+/* .signupImagePlaceholder {
+  width: 80%;
+  height: 80%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: white;
+  border-radius: 10px;
+} */
+
+/* Right Side - Form Section */
+/* .signupRight {
+  width: 50%;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+} */
+
+/* Form Inputs */
+/* .signupForm {
+  display: flex;
+  flex-direction: column;
+} */
+
+/* .signupInput {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+} */
+
+/* Button Styling */
+/* .signupButton {
+  width: 100%;
+  padding: 12px;
+  background-color: #6e8efb;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background 0.3s;
+} */
+
+/* .signupButton:hover {
+  background-color: #1f46bb;
+} */
+
+/* Footer Text */
+/* .signupFooter {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 14px;
+  color: black;
+} */
+
+/* .signupFooter a {
+  color: #6e8efb;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.signupFooter a:hover {
+  text-decoration: underline;
+} */
+/* Contact */
+/* * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Arial", sans-serif;
+} */
+
+/* Container centers the whole form */
+.signupContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+
+/* The card with image left and form right */
+.signupCard {
+  display: flex;
+  /* width: 100%; */
+  width: 900px;
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.85);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+}
+
+/* Left section for image */
+.signupLeft {
+  flex: 1;
+  /* background: url('https://cdn.create.vista.com/api/media/small/426382906/stock-photo-hostel-dormitory-beds-arranged-in-room') no-repeat center center/cover; */
+}
+
+.signupLeft img{
+  max-width: 100%;
+  /* width: auto; */
+  height: auto;
+  /* object-fit: cover; */
+  /* border-radius: 8px; */
+}
+
+/* Right section for the form */
+.signupRight {
+  flex: 1;
+  padding: 40px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: #F1531C;
+  color: white;
+  align-items: center;  
+  justify-content: center;
+}
+
+/* Title */
+.signupRight h2 {
+  font-size: 28px;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #fff;
+}
+
+/* Inputs */
+.signupForm {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px;
+  border-radius: 15px;
+  background-color: #4B1E0E;
+}
+
+.signupInput {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #ffff;
+  color: #fff;
+}
+
+.signupInput::placeholder {
+  color: #1d1d1d;
+}
+
+.signupInput:focus {
+  outline: 2px solid #f7941d;
+  background-color: #222;
+}
+
+/* Button */
+.signupButton {
+  padding: 12px;
+  background-color: #f7941d;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.signupButton:hover {
+  background-color: #e17c04;
+}
+
+/* Footer text */
+.signupFooter {
+  margin-top: 20px;
+  font-size: 14px;
+  text-align: center;
+  color: #bbb;
+}
+
+.signupFooter a {
+  color: #FF3CB0;
+  text-decoration: none;
+}
+
+.signupFooter a:hover {
+  text-decoration: underline;
+}
+
+.passwordWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.signupInput {
+  width: 100%;
+  padding: 10px;
+  color: #FF3CB0;
+  background-color: #333;
+  padding-right: 70px; /* 👈 Add space for the toggle button */
+  margin-bottom: 15px;
+  border: 2px solid #F7941D;
+  border-radius: 5px;
+  box-sizing: border-box; /* 👈 Ensure padding doesn't shrink input width */
+}
+
+.togglePassword {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #F1531C;
+  font-size: 0.85rem;
+  cursor: pointer;
+}

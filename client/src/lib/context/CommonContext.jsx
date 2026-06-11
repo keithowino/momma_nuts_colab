@@ -1,5 +1,11 @@
 import { createContext, useContext, useState } from "react";
-import { FiShoppingCart, FiUser, FiHome, FiPackage } from "react-icons/fi";
+import {
+	FiShoppingCart,
+	FiUser,
+	FiHome,
+	FiPackage,
+	FiCreditCard,
+} from "react-icons/fi";
 
 const CommonContext = createContext();
 
@@ -9,7 +15,11 @@ export const CommonProvider = ({ children }) => {
 		{ path: "/", label: "Home", icon: FiHome },
 		{ path: "/user-products", label: "Shop", icon: FiPackage },
 		{ path: "/cart", label: "Cart", icon: FiShoppingCart },
-		{ path: "/profile", label: "Profile", icon: FiUser },
+	]);
+	const [profileMenuItems, setProfileMenuItems] = useState([
+		{ path: "/profile", label: "My Profile", icon: FiUser },
+		{ path: "/orders", label: "My Orders", icon: FiPackage },
+		{ path: "/payments", label: "Payments", icon: FiCreditCard },
 	]);
 
 	const CommonContextFeatures = {
@@ -17,6 +27,8 @@ export const CommonProvider = ({ children }) => {
 		setIsMenuOpen,
 		navItems,
 		setNavItems,
+		profileMenuItems,
+		setProfileMenuItems,
 	};
 
 	return (

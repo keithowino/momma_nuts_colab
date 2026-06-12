@@ -26,6 +26,12 @@ import Signup from "./pages/auth/Signup";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Profile from "./pages/Profile";
+import AdminLayout from "./pages/admin/Layout";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminProducts from "./pages/admin/Products";
+import AdminOrders from "./pages/admin/Orders";
+import AdminUsers from "./pages/admin/Users";
+import AdminSettings from "./pages/admin/Settings";
 
 function App() {
 	const AuthenticatedApp = () => {
@@ -43,6 +49,14 @@ function App() {
 						path="/forgot-password"
 						element={<ForgotPassword />}
 					/>
+
+					<Route path="/admin" element={<AdminLayout />}>
+						<Route index element={<AdminDashboard />} />
+						<Route path="products" element={<AdminProducts />} />
+						<Route path="orders" element={<AdminOrders />} />
+						<Route path="users" element={<AdminUsers />} />
+						<Route path="settings" element={<AdminSettings />} />
+					</Route>
 
 					{/* With navbar */}
 					<Route path="/" element={<Layout />}>

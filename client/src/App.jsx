@@ -6,7 +6,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 // import UProduct from "./productUser/UProduct";
 import Orders from "./orders/Orders";
 import OrderItems from "./orders/OrderItems";
-import Payment from "./payments/Payments";
+import Payment from "./pages/Payments";
 // import Mpesa from "./mpesa/Mpesa";
 // import Profile from "./profile/Profile";
 // import Logout from "./authorization/Logout";
@@ -30,6 +30,7 @@ import AdminProducts from "./pages/admin/Products";
 import AdminOrders from "./pages/admin/Orders";
 import AdminUsers from "./pages/admin/Users";
 import AdminSettings from "./pages/admin/Settings";
+import AdminPayments from "./pages/admin/Payments";
 
 function App() {
 	const AuthenticatedApp = () => {
@@ -52,6 +53,7 @@ function App() {
 						<Route index element={<AdminDashboard />} />
 						<Route path="products" element={<AdminProducts />} />
 						<Route path="orders" element={<AdminOrders />} />
+						<Route path="payments" element={<AdminPayments />} />
 						<Route path="users" element={<AdminUsers />} />
 						<Route path="settings" element={<AdminSettings />} />
 					</Route>

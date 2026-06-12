@@ -22,11 +22,20 @@ const ProductDetail = () => {
 	const [quantity, setQuantity] = useState(1);
 	const [addingToCart, setAddingToCart] = useState(false);
 	const [addedToCart, setAddedToCart] = useState(false);
+	const [liked, setLiked] = useState(false);
+	const [likesCount, setLikesCount] = useState(0);
+	const [isLiking, setIsLiking] = useState(false);
 	const [error, setError] = useState(null);
 
 	useEffect(() => {
 		fetchProduct();
 	}, [id]);
+
+	useEffect(() => {
+		if (product && localStorage.getItem("access_token")) {
+			fetchLikeStatus();
+		}
+	}, [product]);
 
 	const fetchProduct = async () => {
 		setLoading(true);
@@ -60,6 +69,60 @@ const ProductDetail = () => {
 			setError(err.response?.data?.message || "Failed to load product");
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const fetchLikeStatus = async () => {
+		const token = localStorage.getItem("access_token");
+		if (!token) return;
+
+		try {
+			const response = await fetch(
+				`${API_URL}/products/${product.id}/likes`,
+				{
+					headers: { Authorization: `Bearer ${token}` },
+				},
+			);
+			const data = await response.json();
+			setLiked(data.liked || false);
+			setLikesCount(data.likes_count || 0);
+		} catch (error) {
+			console.error("Error fetching like status:", error);
+		}
+	};
+
+	const handleLikeToggle = async () => {
+		const token = localStorage.getItem("access_token");
+		if (!token) {
+			alert("Please login to like products");
+			return;
+		}
+
+		if (isLiking) return;
+		setIsLiking(true);
+
+		const method = liked ? "DELETE" : "POST";
+
+		try {
+			const response = await fetch(
+				`${API_URL}/products/${product.id}/likes`,
+				{
+					method,
+					headers: {
+						Authorization: `Bearer ${token}`,
+						"Content-Type": "application/json",
+					},
+				},
+			);
+
+			if (response.ok) {
+				setLiked(!liked);
+				setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+			}
+		} catch (error) {
+			console.error("Error toggling like:", error);
+		} finally {
+			setIsLiking(false);
 		}
 	};
 
@@ -291,8 +354,23 @@ const ProductDetail = () => {
 							)}
 						</button>
 
-						<button className="px-4 py-3 rounded-full border border-gray-300 hover:border-momma-pink hover:text-momma-pink transition-colors">
-							<FiHeart />
+						<button
+							onClick={handleLikeToggle}
+							disabled={isLiking}
+							className={`px-4 py-3 rounded-full border transition-colors ${
+								liked
+									? "border-red-500 bg-red-50 text-red-500"
+									: "border-gray-300 hover:border-red-500 hover:text-red-500"
+							}`}
+						>
+							<FiHeart
+								className={`text-lg ${liked ? "fill-current" : ""}`}
+							/>
+							{likesCount > 0 && (
+								<span className="ml-1 text-sm">
+									{likesCount}
+								</span>
+							)}
 						</button>
 
 						<button className="px-4 py-3 rounded-full border border-gray-300 hover:border-momma-pink hover:text-momma-pink transition-colors">

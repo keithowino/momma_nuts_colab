@@ -11,6 +11,7 @@ import {
 	FiX,
 	FiBell,
 	FiUser,
+	FiCreditCard,
 } from "react-icons/fi";
 
 const Layout = () => {
@@ -36,6 +37,7 @@ const Layout = () => {
 		{ path: "/admin", label: "Dashboard", icon: FiGrid },
 		{ path: "/admin/products", label: "Products", icon: FiPackage },
 		{ path: "/admin/orders", label: "Orders", icon: FiShoppingCart },
+		{ path: "/admin/payments", label: "Payments", icon: FiCreditCard },
 		{ path: "/admin/users", label: "Users", icon: FiUsers },
 		{ path: "/admin/settings", label: "Settings", icon: FiSettings },
 	];

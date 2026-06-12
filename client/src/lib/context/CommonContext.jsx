@@ -7,6 +7,7 @@ import {
 	FiCreditCard,
 	FiSettings,
 	FiShield,
+	FiBookOpen,
 } from "react-icons/fi";
 
 const CommonContext = createContext();
@@ -18,6 +19,7 @@ export const CommonProvider = ({ children }) => {
 		{ path: "/", label: "Home", icon: FiHome },
 		{ path: "/user-products", label: "Shop", icon: FiPackage },
 		{ path: "/cart", label: "Cart", icon: FiShoppingCart },
+		{ path: "/about", label: "About", icon: FiBookOpen },
 	]);
 
 	// Get user from localStorage

@@ -1,17 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-// import Authorization from "./authorization/Authorization";
-// import SignupForm from "./authorization/Signup";
-// import LoginForm from "./authorization/Login";
-// import AProduct from "./productAdmin/AProduct";
-// import UProduct from "./productUser/UProduct";
-import Orders from "./orders/Orders";
-import OrderItems from "./orders/OrderItems";
+import OrderDetails from "./pages/order/OrderDetails";
 import Payment from "./pages/Payments";
-// import Mpesa from "./mpesa/Mpesa";
-// import Profile from "./profile/Profile";
-// import Logout from "./authorization/Logout";
-// import ResetPassword from "./authorization/ResetPassword";
-// import ForgotPassword from "./authorization/ForgotPassword";
 import MainLayout from "./components/Layout";
 import { CommonProvider } from "./lib/context/CommonContext";
 import Home from "./pages/Home";
@@ -31,17 +20,15 @@ import AdminOrders from "./pages/admin/Orders";
 import AdminUsers from "./pages/admin/Users";
 import AdminSettings from "./pages/admin/Settings";
 import AdminPayments from "./pages/admin/Payments";
+import Orders from "./pages/order/Orders";
+import About from "./pages/About";
 
 function App() {
 	const AuthenticatedApp = () => {
 		return (
 			<Router>
 				<Routes>
-					{/* No navbar */}
-					{/* <Route path="/authorization" element={<Authorization />} /> */}
-					{/* <Route path="/signup" element={<SignupForm />} /> */}
 					<Route path="/signup" element={<Signup />} />
-					{/* <Route path="/login" element={<LoginForm />} /> */}
 					<Route path="/login" element={<Login />} />
 					<Route path="/reset-password" element={<ResetPassword />} />
 					<Route
@@ -58,10 +45,9 @@ function App() {
 						<Route path="settings" element={<AdminSettings />} />
 					</Route>
 
-					{/* With navbar */}
 					<Route path="/" element={<MainLayout />}>
 						<Route index element={<Home />} />
-						{/* <Route path="/admin-products" element={<AProduct />} /> */}
+						<Route path="/about" element={<About />} />
 						<Route
 							path="/user-products"
 							element={<ProductList />}
@@ -69,7 +55,7 @@ function App() {
 						<Route path="/orders" element={<Orders />} />
 						<Route
 							path="/order-items/:orderId"
-							element={<OrderItems />}
+							element={<OrderDetails />}
 						/>
 						<Route
 							path="/product/:id"
@@ -77,10 +63,8 @@ function App() {
 						/>
 						<Route path="/payments" element={<Payment />} />
 						<Route path="/cart" element={<Cart />} />
-						{/* <Route path="/mpesa" element={<Mpesa />} /> */}
 						<Route path="/mpesa" element={<Checkout />} />
 						<Route path="/profile" element={<Profile />} />
-						{/* <Route path="/logout" element={<Logout />} /> */}
 					</Route>
 				</Routes>
 			</Router>

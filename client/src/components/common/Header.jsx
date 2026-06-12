@@ -4,20 +4,41 @@ import { useCommon } from "../../lib/context/CommonContext";
 import { FiLogOut, FiUser, FiChevronDown, FiLogIn } from "react-icons/fi";
 
 const Header = () => {
-	const { isMenuOpen, setIsMenuOpen, navItems, profileMenuItems } =
-		useCommon();
+	const {
+		isMenuOpen,
+		setIsMenuOpen,
+		navItems,
+		profileMenuItems,
+		user,
+		setUser,
+	} = useCommon();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const [isProfileOpen, setIsProfileOpen] = useState(false);
-	const [user, setUser] = useState(null);
 
-	// Get user from localStorage
+	// Get user from localStorage and update context
 	useEffect(() => {
 		const storedUser = localStorage.getItem("user");
 		if (storedUser) {
-			setUser(JSON.parse(storedUser));
+			const userData = JSON.parse(storedUser);
+			setUser(userData);
 		}
-	}, []);
+	}, [setUser]);
+
+	// Listen for storage changes (when user logs in/out)
+	useEffect(() => {
+		const handleStorageChange = () => {
+			const storedUser = localStorage.getItem("user");
+			if (storedUser) {
+				setUser(JSON.parse(storedUser));
+			} else {
+				setUser(null);
+			}
+		};
+
+		window.addEventListener("storage", handleStorageChange);
+		return () => window.removeEventListener("storage", handleStorageChange);
+	}, [setUser]);
 
 	// Close dropdown when clicking outside
 	useEffect(() => {
@@ -34,6 +55,7 @@ const Header = () => {
 		localStorage.removeItem("access_token");
 		localStorage.removeItem("refresh_token");
 		localStorage.removeItem("user");
+		setUser(null);
 		window.dispatchEvent(new Event("storage"));
 		navigate("/login");
 	};
@@ -55,10 +77,9 @@ const Header = () => {
 					</Link>
 
 					{/* Desktop Navigation */}
-					<div className="hidden md:flex items-center space-x-8">
+					<div className="hidden md:flex items-center space-x-2">
 						{navItems.map((item) => {
 							const Icon = item.icon;
-							// Don't show Profile in navItems since we have dropdown
 							if (item.label === "Profile") return null;
 							return (
 								<Link
@@ -86,14 +107,13 @@ const Header = () => {
 										: "text-gray-700 hover:text-momma-pink hover:bg-gray-100"
 								}`}
 							>
-								<FiUser className="text-lg" />
-								<div
-									className={`${user ? "w-8 h-8 rounded-full bg-gradient-to-r from-momma-pink to-momma-orange flex items-center justify-center text-white font-semibold" : ""}`}
-								>
-									{user
-										? user.name.charAt(0).toUpperCase()
-										: ""}
-								</div>
+								{user ? (
+									<div className="w-8 h-8 rounded-full bg-gradient-to-r from-momma-pink to-momma-orange flex items-center justify-center text-white font-semibold">
+										{user.name?.charAt(0).toUpperCase()}
+									</div>
+								) : (
+									<FiUser className="text-lg" />
+								)}
 								<FiChevronDown
 									className={`text-sm transition-transform duration-200 ${
 										isProfileOpen ? "rotate-180" : ""
@@ -112,11 +132,11 @@ const Header = () => {
 													{user.name}
 												</p>
 												<p className="text-xs text-gray-500 mt-1">
-													{user.email}
+													{user.role}
 												</p>
 											</div>
 
-											{/* Menu Items */}
+											{/* Dynamic Menu Items - includes Admin link if user is admin */}
 											{profileMenuItems.map((item) => {
 												const Icon = item.icon;
 												return (
@@ -144,27 +164,23 @@ const Header = () => {
 									<div className="border-t border-gray-100"></div>
 
 									{user ? (
-										<>
-											<button
-												onClick={handleLogout}
-												className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
-											>
-												<FiLogOut className="text-lg" />
-												<span>Logout</span>
-											</button>
-										</>
+										<button
+											onClick={handleLogout}
+											className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
+										>
+											<FiLogOut className="text-lg" />
+											<span>Logout</span>
+										</button>
 									) : (
-										<>
-											<button
-												onClick={() => {
-													handleNavigate("/login");
-												}}
-												className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
-											>
-												<FiLogIn className="text-lg" />
-												<span>Login</span>
-											</button>
-										</>
+										<button
+											onClick={() => {
+												handleNavigate("/login");
+											}}
+											className="w-full flex items-center gap-3 px-4 py-2.5 text-momma-pink hover:bg-pink-50 transition-colors"
+										>
+											<FiLogIn className="text-lg" />
+											<span>Login</span>
+										</button>
 									)}
 								</div>
 							)}
@@ -235,6 +251,9 @@ const Header = () => {
 										<span className="font-medium text-momma-brown">
 											{user.name}
 										</span>
+										<span className="ml-2 text-xs bg-momma-pink/10 text-momma-pink px-2 py-0.5 rounded-full">
+											{user.role}
+										</span>
 									</div>
 
 									{profileMenuItems.map((item) => {
@@ -257,31 +276,27 @@ const Header = () => {
 							)}
 
 							{user ? (
-								<>
-									<button
-										onClick={() => {
-											setIsMenuOpen(false);
-											handleLogout();
-										}}
-										className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50"
-									>
-										<FiLogOut />
-										<span>Logout</span>
-									</button>
-								</>
+								<button
+									onClick={() => {
+										setIsMenuOpen(false);
+										handleLogout();
+									}}
+									className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50"
+								>
+									<FiLogOut />
+									<span>Logout</span>
+								</button>
 							) : (
-								<>
-									<button
-										onClick={() => {
-											setIsMenuOpen(false);
-											handleNavigate("/login");
-										}}
-										className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
-									>
-										<FiLogIn className="text-lg" />
-										<span>Login</span>
-									</button>
-								</>
+								<button
+									onClick={() => {
+										setIsMenuOpen(false);
+										handleNavigate("/login");
+									}}
+									className="w-full flex items-center gap-3 px-4 py-2.5 text-momma-pink hover:bg-pink-50 transition-colors"
+								>
+									<FiLogIn className="text-lg" />
+									<span>Login</span>
+								</button>
 							)}
 						</div>
 					</div>

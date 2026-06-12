@@ -566,85 +566,6 @@ class Payment(Resource):
     #         }
     #     }, 201
     
-
-# class Carts(Resource):
-#     @jwt_required()
-#     def post(self):
-#         current_user = get_jwt_identity()
-        
-#         try:
-#             data = request.get_json()
-#             if not data:
-#                 return {'error': 'Invalid request format'}, 400
-
-#             product_id = data.get('product_id')
-#             quantity = data.get('quantity', 1)  # Default quantity is 1
-
-#             if not product_id:
-#                 return {'error': 'Product ID is required'}, 400
-
-#             # Fetch product and validate availability
-#             product = Products.query.filter_by(id=product_id, deleted_at=None).first()
-#             if not product:
-#                 return {'error': 'Product not found or has been removed'}, 404
-
-#             if product.stock < quantity:
-#                 return {'error': f'Only {product.stock} items available in stock'}, 400
-
-#             # Check if item is already in the cart
-#             cart_item = Cart.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
-
-#             if cart_item:
-#                 new_quantity = cart_item.quantity + quantity
-#                 if new_quantity > product.stock:  # Prevent exceeding stock
-#                     return {'error': f'Only {product.stock} items available in stock'}, 400
-#                 cart_item.quantity = new_quantity
-#             else:
-#                 cart_item = Cart(user_id=current_user['id'], product_id=product_id, quantity=quantity)
-#                 db.session.add(cart_item)
-
-#             # Reduce stock after adding to cart
-#             # product.stock -= quantity
-
-#             db.session.commit()
-
-#             return {
-#                 'message': 'Product added to cart successfully',
-#                 'cart_item': {
-#                     'id': cart_item.id,
-#                     'product_id': cart_item.product_id,
-#                     'quantity': cart_item.quantity
-#                 }
-#             }, 201
-
-#         except Exception as e:
-#             db.session.rollback()
-#             return {'error': 'An error occurred', 'details': str(e)}, 500
-
-#     @jwt_required()
-#     def get(self):
-#         current_user = get_jwt_identity()
-
-#         cart_items = Cart.query.filter_by(user_id=current_user['id']).all()
-
-#         if not cart_items:
-#             return {'message': 'Cart is empty'}, 200
-
-#         serialized_cart = []
-#         for item in cart_items:
-#             serialized_cart.append({
-#                 'id': item.id,
-#                 'product_id': item.product_id,
-#                 'quantity': item.quantity,
-#                 'product_name': item.product.name,
-#                 'product_image': item.product.image,
-#                 'price': item.product.price,
-#                 # optional: add subtotal per item
-#                 'subtotal': round(item.product.price * item.quantity, 2)
-#             })
-
-#         return serialized_cart, 200
-
 class Carts(Resource):
     @jwt_required()
     def post(self):
@@ -718,37 +639,6 @@ class Carts(Resource):
             })
 
         return serialized_cart, 200
-    
-# class CartsResource(Resource):
-#     @jwt_required()
-#     def delete(self, cart_id=None):
-#         current_user = get_jwt_identity()
-
-#         if cart_id is not None:  # Deleting a single cart item
-#             cart_item = Cart.query.filter_by(id=cart_id, user_id=current_user['id']).first()
-#             if not cart_item:
-#                 return {'error': 'Cart item not found'}, 404
-
-#             try:
-#                 db.session.delete(cart_item)
-#                 db.session.commit()
-#                 return {'message': 'Item removed from cart successfully'}, 200
-#             except Exception as e:
-#                 db.session.rollback()
-#                 return {'error': 'Failed to remove item', 'details': str(e)}, 500
-
-#         # If no cart_id is provided, clear all cart items for the user
-#         user_cart_items = Cart.query.filter_by(user_id=current_user['id']).all()
-#         if not user_cart_items:
-#             return {'message': 'Cart is already empty'}, 200
-
-#         try:
-#             Cart.query.filter_by(user_id=current_user['id']).delete()
-#             db.session.commit()
-#             return {'message': 'Cart cleared successfully'}, 200
-#         except Exception as e:
-#             db.session.rollback()
-#             return {'error': 'Failed to clear cart', 'details': str(e)}, 500
 
 class CartsResource(Resource):
     @jwt_required()
@@ -786,88 +676,6 @@ class CartsResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {'error': 'Failed to clear cart', 'details': str(e)}, 500
-
-# class Checkout(Resource):
-#     @jwt_required()
-#     def post(self):
-#         user_id = get_jwt_identity()
-#         user_id = int(user_id)  # Convert to int
-
-#         cart_items = Cart.query.filter_by(user_id=user_id).all()
-#         if not cart_items:
-#             return {'error': 'Cart is empty, add items first!'}, 400
-
-#         total_price = 0
-#         order_items_data = []
-
-#         # ✅ 1. Create Order (status defaults to 'pending')
-#         new_order = Orders(user_id=user_id, total_price=0)
-#         db.session.add(new_order)
-#         db.session.commit()  # Commit early to get order ID
-
-#         for cart_item in cart_items:
-#             product = Products.query.get(cart_item.product_id)
-
-#             if not product:
-#                 return {'error': f'Product with ID {cart_item.product_id} not found!'}, 404
-
-#             if product.stock < cart_item.quantity:
-#                 return {'error': f'Not enough stock for {product.name}. Available: {product.stock}'}, 400
-
-#             # ✅ 2. Deduct stock
-#             product.stock -= cart_item.quantity
-
-#             # ✅ 3. Calculate total price
-#             item_total = product.price * cart_item.quantity
-#             total_price += item_total
-
-#             # ✅ 4. Create Order Item
-#             order_item = OrderItems(
-#                 order_id=new_order.id,
-#                 product_id=product.id,
-#                 quantity=cart_item.quantity,
-#                 price=product.price
-#             )
-#             db.session.add(order_item)
-
-#             order_items_data.append({
-#                 'product_id': product.id,
-#                 'name': product.name,
-#                 'quantity': cart_item.quantity,
-#                 'price': product.price
-#             })
-
-#         # ✅ 5. Update order total price
-#         new_order.total_price = total_price
-
-#         # ✅ 6. Create Pending Payment Entry
-#         # new_payment = Payments(
-#         #     order_id=new_order.id,
-#         #     user_id=user_id,
-#         #     phone_number=None,  # Will be updated during payment
-#         #     amount=total_price,
-#         #     status="Pending",  # Ensures we track unpaid orders
-#         #     mpesa_receipt_number=None,
-#         #     transaction_date=datetime.utcnow()
-#         # )
-#         # db.session.add(new_payment)
-
-#         # ✅ 7. Clear the cart
-#         Cart.query.filter_by(user_id=user_id).delete()
-
-#         db.session.commit()
-
-#         # Send order confirmation email after commit
-
-#         if current_user.get('email'):
-#             send_order_confirmation_email(current_user['email'], new_order.id)
-
-#         return {
-#             'message': 'Order created successfully, proceed to payment.',
-#             'order_id': new_order.id,
-#             'total_price': total_price,
-#             'order_items': order_items_data
-#         }, 201
 
 class Checkout(Resource):
     @jwt_required()
@@ -968,96 +776,171 @@ class Checkout(Resource):
             traceback.print_exc()
             db.session.rollback()
             return {'error': 'Checkout failed', 'details': str(e)}, 500
-        
+
 class Comment(Resource):
     def get(self):
-        comments = Comments.query.filter(Comments.deleted_at.is_(None)).all()
-        if not comments:
-            return {"error": "Reviews not found"}, 404
+        # Get all top-level comments (no product filter)
+        comments = Comments.query.filter(
+            Comments.deleted_at.is_(None),
+            Comments.parent_id.is_(None)
+        ).all()
         
-        return [
-            {
-                **comment.to_dict(),
-                "product": comment.product.to_dict() if comment.product else None
-            }
-            for comment in comments
-        ]
+        if not comments:
+            return [], 200
+        
+        result = []
+        for comment in comments:
+            comment_dict = comment.to_dict()
+            replies = Comments.query.filter_by(
+                parent_id=comment.id
+            ).filter(Comments.deleted_at.is_(None)).all()
+            comment_dict['replies'] = [reply.to_dict() for reply in replies]
+            result.append(comment_dict)
+        
+        return result, 200
     
     @jwt_required()
     def post(self):
-        current_user = get_jwt_identity()
+        print("=== COMMENT POST DEBUG ===")
+        
+        # Get current user
+        current_user_id = get_jwt_identity()
+        print(f"Current user ID: {current_user_id}")
+        
+        # Get additional claims
+        from flask_jwt_extended import get_jwt
+        claims = get_jwt()
+        print(f"Claims: {claims}")
+        
+        # Get user from database
+        if isinstance(current_user_id, str):
+            user_id = int(current_user_id)
+        else:
+            user_id = current_user_id
+            
+        user = Users.query.get(user_id)
+        if not user:
+            return {'error': 'User not found'}, 404
+        
         data = request.get_json()
-
-        if "content" not in data or "product_id" not in data:
-            return {"error": "Missing 'content' or 'product_id' field"}, 422
-
-        # Block replies here
-        if data.get("parent_id") is not None:
-            return {"error": "Use /comments/<comment_id>/replies to post replies"}, 400
-
-        # Ensure the product exists
-        product = Products.query.filter_by(id=data["product_id"], deleted_at=None).first()
-        if not product:
-            return {"error": "Product not found or has been deleted"}, 404
-
+        print(f"Request data: {data}")
+        
+        if not data:
+            return {'error': 'No data provided'}, 400
+        
+        content = data.get('content')
+        product_id = data.get('product_id')
+        parent_id = data.get('parent_id')  # For replies
+        
+        if not content:
+            return {"error": "Comment content is required"}, 422
+        
+        if not product_id and not parent_id:
+            return {"error": "Either product_id or parent_id is required"}, 422
+        
+        # Create new comment
         new_comment = Comments(
-            content=data["content"],
-            user_id=current_user["id"],
-            product_id=data["product_id"],  # Set the product_id to associate the comment with a product
-            parent_id=None,
+            content=content,
+            user_id=user.id,
+            product_id=product_id,
+            parent_id=parent_id,
             created_at=datetime.utcnow()
         )
-
+        
         db.session.add(new_comment)
         db.session.commit()
-
-        return {**new_comment.to_dict(), "product": product.to_dict()}, 201
-
+        
+        print(f"Comment created: ID {new_comment.id}")
+        
+        # Return the comment with user info
+        return {
+            'id': new_comment.id,
+            'content': new_comment.content,
+            'created_at': new_comment.created_at.isoformat(),
+            'user': {
+                'id': user.id,
+                'name': user.name,
+                'email': user.email
+            },
+            'product_id': new_comment.product_id,
+            'parent_id': new_comment.parent_id,
+            'replies': []
+        }, 201
     
 class CommentResource(Resource):
+    def get(self, id=None, product_id=None):
+        print(f"CommentResource GET called - id: {id}, product_id: {product_id}")  # Debug
+        
+        if product_id:
+            # Get comments for a specific product
+            comments = Comments.query.filter_by(
+                product_id=product_id, 
+                parent_id=None  # Only top-level comments
+            ).filter(Comments.deleted_at.is_(None)).all()
+            
+            if not comments:
+                return [], 200  # Return empty array, not 404
+            
+            # Serialize each comment with its replies
+            result = []
+            for comment in comments:
+                comment_dict = comment.to_dict()
+                # Load replies for this comment
+                replies = Comments.query.filter_by(
+                    parent_id=comment.id
+                ).filter(Comments.deleted_at.is_(None)).all()
+                comment_dict['replies'] = [reply.to_dict() for reply in replies]
+                result.append(comment_dict)
+            
+            return result, 200
+
+        elif id:
+            # Get single comment
+            comment = Comments.query.filter_by(
+                id=id
+            ).filter(Comments.deleted_at.is_(None)).first()
+            
+            if not comment:
+                return {'error': 'Comment not found!'}, 404
+            
+            result = comment.to_dict()
+            # Load replies
+            replies = Comments.query.filter_by(
+                parent_id=comment.id
+            ).filter(Comments.deleted_at.is_(None)).all()
+            result['replies'] = [reply.to_dict() for reply in replies]
+            
+            return result, 200
+
+        return {'error': 'Invalid request, product_id or id required'}, 400
+
     @jwt_required()
     def delete(self, id):
         current_user = get_jwt_identity()
+        
+        # Handle both string and dict identity
+        if isinstance(current_user, dict):
+            user_id = current_user.get('id')
+            user_role = current_user.get('role')
+        else:
+            user = Users.query.get(int(current_user))
+            user_id = user.id if user else None
+            user_role = user.role if user else None
 
         comment = Comments.query.get(id)
-
+        
         if not comment or comment.deleted_at is not None:
             return {'message': 'Comment not found!'}, 404
-
-        if current_user['role'] != 'admin' and comment.user_id != current_user['id']:
+        
+        # Allow if admin OR comment owner
+        if user_role != 'admin' and comment.user_id != user_id:
             return {'error': 'You are not authorized to delete this comment!'}, 403
-
+        
+        # Soft delete
         comment.deleted_at = datetime.utcnow()
         db.session.commit()
+        
         return {'message': 'Comment deleted successfully!'}, 200
-    
-    def get(self, id=None, product_id=None):
-        if product_id:
-            comments = Comments.query.filter_by(product_id=product_id).filter(Comments.deleted_at.is_(None)).all()
-
-            if not comments:
-                return {"error": "No comments found for this product"}, 404
-
-            return [
-                {
-                    **comment.to_dict(),
-                    "product": comment.product.to_dict() if comment.product else None
-                }
-                for comment in comments
-            ]
-
-        elif id:
-            comment = Comments.query.filter_by(id=id).filter(Comments.deleted_at.is_(None)).first()
-
-            if not comment:
-                return {"error": "Comment not found!"}, 404
-
-            return {
-                **comment.to_dict(),
-                "product": comment.product.to_dict() if comment.product else None
-            }
-
-        return {"error": "Invalid request, product_id or id required"}, 400
     
 class CommentResourceCount(Resource):
     def get(self, comment_id):
@@ -1071,82 +954,160 @@ class CommentResourceCount(Resource):
         return {"comment": comment.to_dict(), "likes_count": likes_count}, 200
     
 class Reply(Resource):
-    
     @jwt_required()
     def post(self, comment_id):
-        current_user = get_jwt_identity()
+        print(f"=== REPLY POST DEBUG ===")
+        print(f"Comment ID: {comment_id}")
+        
+        # Get current user - handle both string and dict identity
+        current_user_id = get_jwt_identity()
+        print(f"Current user identity: {current_user_id}")
+        print(f"Identity type: {type(current_user_id)}")
+        
+        # Get user ID correctly
+        if isinstance(current_user_id, dict):
+            user_id = current_user_id.get('id')
+        else:
+            user_id = int(current_user_id) if current_user_id else None
+        
+        print(f"Resolved user ID: {user_id}")
+        
+        if not user_id:
+            return {"error": "User not authenticated"}, 401
+        
+        # Get additional claims for role
+        from flask_jwt_extended import get_jwt
+        claims = get_jwt()
+        user_role = claims.get('role')
+        
         data = request.get_json()
-
+        print(f"Request data: {data}")
+        
         # Check if 'content' is in the request body
-        if "content" not in data:
+        if not data or "content" not in data:
             return {"error": "Missing 'content' field"}, 422
-
+        
         # Get the parent comment
         parent_comment = Comments.query.filter_by(id=comment_id, deleted_at=None).first()
         if not parent_comment:
             return {"error": "Parent comment not found or has been deleted"}, 404
-
+        
         # Prevent replying to a reply (only root-level comments can have replies)
         if parent_comment.parent_id is not None:
             return {"error": "Cannot reply to a reply"}, 400
-
-        # Create a new reply
+        
+        # Get the user
+        user = Users.query.get(user_id)
+        if not user:
+            return {"error": "User not found"}, 404
+        
+        # Create a new reply (as a comment with parent_id)
         reply = Comments(
             content=data["content"],
-            user_id=current_user["id"],
+            user_id=user.id,
             parent_id=comment_id,
+            product_id=parent_comment.product_id,  # Inherit product_id from parent
             created_at=datetime.utcnow()
         )
-
-        # Commit to the database
+        
         db.session.add(reply)
         db.session.commit()
-
-        return reply.to_dict(), 201
+        
+        print(f"Reply created with ID: {reply.id}")
+        
+        # Return the reply with user info
+        return {
+            'id': reply.id,
+            'content': reply.content,
+            'created_at': reply.created_at.isoformat(),
+            'user': {
+                'id': user.id,
+                'name': user.name,
+                'email': user.email
+            },
+            'parent_id': reply.parent_id,
+            'product_id': reply.product_id
+        }, 201
     
     def get(self, comment_id):
+        """Get all replies for a comment"""
         parent_comment = Comments.query.filter_by(id=comment_id).filter(Comments.deleted_at.is_(None)).first()
         if not parent_comment:
             return {"error": "Parent comment not found"}, 404
-
+        
         if parent_comment.parent_id is not None:
             return {"error": "Cannot fetch replies of a reply"}, 400
-
+        
         replies = Comments.query.filter_by(parent_id=comment_id).filter(Comments.deleted_at.is_(None)).all()
-        if not replies:
-            return {"message": "No replies found for this comment"}, 200
-
-        return [reply.to_dict() for reply in replies], 200
+        
+        result = []
+        for reply in replies:
+            result.append({
+                'id': reply.id,
+                'content': reply.content,
+                'created_at': reply.created_at.isoformat(),
+                'user': {
+                    'id': reply.user.id,
+                    'name': reply.user.name,
+                    'email': reply.user.email
+                } if reply.user else None,
+                'parent_id': reply.parent_id
+            })
+        
+        return result, 200
     
 class ReplyResource(Resource):
     @jwt_required()
     def delete(self, comment_id, reply_id):
-        current_user = get_jwt_identity()
-
+        print(f"=== DELETE REPLY DEBUG ===")
+        print(f"Comment ID: {comment_id}, Reply ID: {reply_id}")
+        
+        # Get current user
+        current_user_id = get_jwt_identity()
+        
+        # Handle both string and dict identity
+        if isinstance(current_user_id, dict):
+            user_id = current_user_id.get('id')
+            user_role = current_user_id.get('role')
+        else:
+            user_id = int(current_user_id) if current_user_id else None
+            # Get role from claims
+            from flask_jwt_extended import get_jwt
+            claims = get_jwt()
+            user_role = claims.get('role')
+        
+        print(f"User ID: {user_id}, Role: {user_role}")
+        
+        # Verify parent comment exists
         parent_comment = Comments.query.get(comment_id)
         if not parent_comment or parent_comment.deleted_at is not None:
             return {"error": "Parent comment not found"}, 404
-
+        
+        # Check if parent is actually a parent (not a reply itself)
         if parent_comment.parent_id is not None:
             return {"error": "Cannot delete a reply to a reply"}, 400
-
+        
+        # Get the reply
         reply = Comments.query.get(reply_id)
         if not reply or reply.deleted_at is not None:
             return {"error": "Reply not found"}, 404
-
+        
+        # Verify it's actually a reply
         if reply.parent_id is None:
             return {"error": "The provided ID is not a reply"}, 400
-
+        
+        # Verify reply belongs to this comment
         if reply.parent_id != parent_comment.id:
             return {"error": "Reply does not belong to this comment"}, 400
-
-        if reply.user_id != current_user["id"] and current_user["role"] != "admin":
+        
+        # Check authorization
+        if reply.user_id != user_id and user_role != "admin":
             return {"error": "You are not authorized to delete this reply"}, 403
-
-        # ✅ Soft delete
+        
+        # Soft delete
         reply.deleted_at = datetime.utcnow()
         db.session.commit()
-
+        
         return {"message": "Reply deleted successfully!"}, 200
     
 class LikeResource(Resource):

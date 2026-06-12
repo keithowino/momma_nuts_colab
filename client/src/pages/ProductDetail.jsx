@@ -10,6 +10,7 @@ import {
 	FiCheck,
 	FiAlertCircle,
 } from "react-icons/fi";
+import CommentSection from "../components/common/comments/CommentSection";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -311,6 +312,10 @@ const ProductDetail = () => {
 						</ul>
 					</div>
 				</div>
+			</div>
+
+			<div className="mt-12">
+				<CommentSection productId={id} />
 			</div>
 		</div>
 	);

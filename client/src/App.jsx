@@ -1,6 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import "./index.css";
-import "./App.css";
 // import Authorization from "./authorization/Authorization";
 // import SignupForm from "./authorization/Signup";
 // import LoginForm from "./authorization/Login";
@@ -14,7 +12,7 @@ import Payment from "./payments/Payments";
 // import Logout from "./authorization/Logout";
 // import ResetPassword from "./authorization/ResetPassword";
 // import ForgotPassword from "./authorization/ForgotPassword";
-import Layout from "./components/Layout";
+import MainLayout from "./components/Layout";
 import { CommonProvider } from "./lib/context/CommonContext";
 import Home from "./pages/Home";
 import ProductList from "./pages/ProductList";
@@ -59,7 +57,7 @@ function App() {
 					</Route>
 
 					{/* With navbar */}
-					<Route path="/" element={<Layout />}>
+					<Route path="/" element={<MainLayout />}>
 						<Route index element={<Home />} />
 						{/* <Route path="/admin-products" element={<AProduct />} /> */}
 						<Route

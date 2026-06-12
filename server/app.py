@@ -33,12 +33,6 @@ EMAIL_VALIDATION_API_KEY = os.getenv('EMAIL_VALIDATION_API_KEY')
 db.init_app(app)
 migrate = Migrate(app,db)
 
-# CORS(app, 
-#      origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5000", "http://127.0.0.1:5173"],
-#      supports_credentials=True,
-#      allow_headers=["Content-Type", "Authorization"],
-#      methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
-
 CORS(app, 
      origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
      supports_credentials=True,
@@ -319,44 +313,6 @@ class Signup(Resource):
             }
         }, 201
 
-# class Login(Resource):
-#     def post(self):
-#         data = request.get_json()
-#         identifier = data.get('identifier')  # Either email or phone
-#         password = data.get('password')
-
-#         if not identifier or not password:
-#             return {'error': 'Please use either email or phone number and password!'}, 400
-
-#         if "@" in identifier and identifier.isdigit():
-#             return {'error': 'Enter either email or phone number, not both!'}, 400
-
-#         # Only fetch users who are active and not soft deleted
-#         user = Users.query.filter(
-#             ((Users.email == identifier) | (Users.phone == identifier)) & 
-#             (Users.is_active == True) & 
-#             (Users.deleted_at == None)
-#         ).first()
-
-#         if user and bcrypt.check_password_hash(user.password, password):
-#             user_data = {
-#                 'id': user.id,
-#                 'name': user.name,
-#                 'email': user.email,
-#                 'phone': user.phone,
-#                 'role': user.role
-#             }
-
-#             return {
-#                 'create_token': create_access_token(identity=user_data),
-#                 'refresh_token': create_refresh_token(identity=user_data),
-#                 'role': user.role,
-#                 'user': user_data
-#             }, 200
-
-#         # return {'error': 'Incorrect email, phone number, password, or account is deactivated!'}, 401
-#         return {'error': 'Invalid credentials!'}, 401
-
 class Login(Resource):
     def post(self):
         data = request.get_json()
@@ -401,7 +357,6 @@ class Login(Resource):
             }, 200
 
         return {'error': 'Invalid credentials!'}, 401
-# from datetime import datetime
 
 class DeleteAcc(Resource):
     @jwt_required()
@@ -461,38 +416,6 @@ class ForgotPassword(Resource):
         send_password_reset_email(user.email, reset_link)
 
         return {'message': 'Password reset link sent to your email.'}, 200
-
-# class ResetPassword(Resource):
-#     def post(self):
-#         data = request.get_json()
-#         token = data.get('token')
-#         new_password = data.get('new_password')
-#         confirm_password = data.get('confirm_password')
-
-#         if not token or not new_password or not confirm_password:
-#             return {'error': 'All fields are required.'}, 400
-
-#         if new_password != confirm_password:
-#             return {'error': 'Passwords do not match.'}, 400
-
-#         if len(new_password) < 8 or not any(c.isalpha() for c in new_password) or not any(c.isdigit() for c in new_password):
-#             return {'error': 'Password must be at least 8 characters and contain letters and numbers.'}, 400
-
-#         try:
-#             decoded = decode_token(token)
-#             user_id = decoded['sub']['id']
-#             user = Users.query.get(user_id)
-
-#             if not user or not user.is_active:
-#                 return {'error': 'User not found or inactive'}, 404
-
-#             user.password = generate_password_hash(new_password).decode('utf-8')
-#             db.session.commit()
-
-#             return {'message': 'Password has been reset successfully.'}, 200
-
-#         except Exception as e:
-#             return {'error': 'Invalid or expired token'}, 400
         
 class ResetPassword(Resource):
     def post(self):

@@ -33,11 +33,18 @@ EMAIL_VALIDATION_API_KEY = os.getenv('EMAIL_VALIDATION_API_KEY')
 db.init_app(app)
 migrate = Migrate(app,db)
 
+# CORS(app, 
+#      origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5000", "http://127.0.0.1:5173"],
+#      supports_credentials=True,
+#      allow_headers=["Content-Type", "Authorization"],
+#      methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+
 CORS(app, 
-     origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+     origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
      supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+     allow_headers=["Content-Type", "Authorization", "Accept"],
+     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+     expose_headers=["Content-Type", "Authorization"])
 
 api = Api(app)
 bcrypt = Bcrypt(app)

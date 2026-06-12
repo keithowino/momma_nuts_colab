@@ -63,9 +63,61 @@ function Products() {
 		}
 	};
 
+	// const handleSubmit = async (e) => {
+	// 	e.preventDefault();
+	// 	const token = localStorage.getItem("access_token");
+	// 	const url = editingProduct
+	// 		? `${API_URL}/products/${editingProduct.id}`
+	// 		: `${API_URL}/products`;
+	// 	const method = editingProduct ? "PATCH" : "POST";
+
+	// 	try {
+	// 		const response = await fetch(url, {
+	// 			method,
+	// 			headers: {
+	// 				"Content-Type": "application/json",
+	// 				Authorization: `Bearer ${token}`,
+	// 			},
+	// 			body: JSON.stringify(formData),
+	// 		});
+
+	// 		if (response.ok) {
+	// 			fetchProducts();
+	// 			setShowModal(false);
+	// 			resetForm();
+	// 			alert(editingProduct ? "Product updated!" : "Product created!");
+	// 		}
+	// 	} catch (error) {
+	// 		console.error("Error saving product:", error);
+	// 	}
+	// };
+
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+
+		// Validate form data
+		if (
+			!formData.name ||
+			!formData.description ||
+			!formData.price ||
+			!formData.stock
+		) {
+			alert("Please fill in all required fields");
+			return;
+		}
+
+		setLoading(true);
 		const token = localStorage.getItem("access_token");
+
+		console.log("Token exists:", !!token);
+		console.log("Form data being sent:", formData);
+
+		if (!token) {
+			alert("You are not logged in. Please login again.");
+			setLoading(false);
+			return;
+		}
+
 		const url = editingProduct
 			? `${API_URL}/products/${editingProduct.id}`
 			: `${API_URL}/products`;
@@ -78,17 +130,47 @@ function Products() {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${token}`,
 				},
-				body: JSON.stringify(formData),
+				body: JSON.stringify({
+					name: formData.name,
+					description: formData.description,
+					price: parseFloat(formData.price),
+					stock: parseInt(formData.stock),
+					image: formData.image || "https://via.placeholder.com/400",
+				}),
 			});
+
+			console.log("Response status:", response.status);
+
+			if (response.status === 401) {
+				alert("Session expired. Please login again.");
+				localStorage.clear();
+				window.location.href = "/login";
+				return;
+			}
+
+			if (response.status === 403) {
+				alert(
+					"You don't have permission to add products. Admin access required.",
+				);
+				return;
+			}
+
+			const data = await response.json();
+			console.log("Response data:", data);
 
 			if (response.ok) {
 				fetchProducts();
 				setShowModal(false);
 				resetForm();
 				alert(editingProduct ? "Product updated!" : "Product created!");
+			} else {
+				alert(data.error || "Failed to save product");
 			}
 		} catch (error) {
 			console.error("Error saving product:", error);
+			alert("Network error. Please check if backend is running.");
+		} finally {
+			setLoading(false);
 		}
 	};
 
@@ -97,18 +179,45 @@ function Products() {
 			return;
 
 		const token = localStorage.getItem("access_token");
+
+		// Debug: Check if token exists
+		console.log("Token exists:", !!token);
+		console.log("Token:", token);
+
+		if (!token) {
+			alert("You are not logged in. Please login again.");
+			window.location.href = "/login";
+			return;
+		}
+
 		try {
 			const response = await fetch(`${API_URL}/products/${id}`, {
 				method: "DELETE",
-				headers: { Authorization: `Bearer ${token}` },
+				headers: {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+				},
 			});
 
+			console.log("Response status:", response.status);
+
+			if (response.status === 401) {
+				alert("Session expired. Please login again.");
+				localStorage.clear();
+				window.location.href = "/login";
+				return;
+			}
+
 			if (response.ok) {
-				fetchProducts();
-				alert("Product deleted!");
+				fetchProducts(); // Refresh the list
+				alert("Product deleted successfully!");
+			} else {
+				const error = await response.json();
+				alert(error.error || "Failed to delete product");
 			}
 		} catch (error) {
 			console.error("Error deleting product:", error);
+			alert("Network error. Please try again.");
 		}
 	};
 

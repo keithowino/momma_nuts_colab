@@ -4,7 +4,7 @@ import "./App.css";
 // import Authorization from "./authorization/Authorization";
 // import SignupForm from "./authorization/Signup";
 // import LoginForm from "./authorization/Login";
-import AProduct from "./productAdmin/AProduct";
+// import AProduct from "./productAdmin/AProduct";
 // import UProduct from "./productUser/UProduct";
 import Orders from "./orders/Orders";
 import OrderItems from "./orders/OrderItems";
@@ -61,7 +61,7 @@ function App() {
 					{/* With navbar */}
 					<Route path="/" element={<Layout />}>
 						<Route index element={<Home />} />
-						<Route path="/admin-products" element={<AProduct />} />
+						{/* <Route path="/admin-products" element={<AProduct />} /> */}
 						<Route
 							path="/user-products"
 							element={<ProductList />}

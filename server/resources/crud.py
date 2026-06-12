@@ -104,7 +104,7 @@ class User(Resource):
     
 class Product(Resource):
     def get(self):
-        products = Products.query.filter_by(deleted_at=None).all()  # Exclude soft-deleted
+        products = Products.query.filter_by(deleted_at=None).all()
         if not products:
             return {'error': 'Products not found'}, 404
         return [
@@ -120,14 +120,37 @@ class Product(Resource):
     
     @jwt_required()
     def post(self):
-        current_user = get_jwt_identity()
+        print("=== PRODUCT CREATE DEBUG ===")
+        
+        # Get current user identity
+        current_user_id = get_jwt_identity()
+        print(f"Raw identity: {current_user_id}")
+        print(f"Identity type: {type(current_user_id)}")
+        
+        # Get additional claims from token
+        from flask_jwt_extended import get_jwt
+        claims = get_jwt()
+        print(f"Additional claims: {claims}")
+        
+        # Get user role from claims or database
+        if claims.get('role'):
+            user_role = claims.get('role')
+            print(f"Role from claims: {user_role}")
+        else:
+            # Fallback to database lookup
+            user = Users.query.get(int(current_user_id))
+            user_role = user.role if user else None
+            print(f"Role from database: {user_role}")
 
         # Check if user is admin
-        if current_user['role'] != 'admin':
+        if user_role != 'admin':
+            print(f"Access denied. User role: {user_role}")
             return {'error': 'The user is forbidden from adding new products!'}, 403
 
         # Get request data
         data = request.get_json()
+        print(f"Received data: {data}")
+        
         required_fields = {'name', 'description', 'price', 'image'}
         
         # Validate required fields
@@ -141,7 +164,7 @@ class Product(Resource):
         # Validate price
         try:
             price = float(data['price'])
-        except ValueError:
+        except (ValueError, TypeError):
             return {'error': 'Price must be a valid number'}, 400
 
         # Ensure price is positive
@@ -154,7 +177,11 @@ class Product(Resource):
             return {'error': 'A product with this name already exists'}, 400
 
         # Handle stock (default to 0 if not provided)
-        stock = int(data.get('stock', 0))
+        try:
+            stock = int(data.get('stock', 0))
+        except (ValueError, TypeError):
+            stock = 0
+            
         if stock < 0:
             return {'error': 'Stock cannot be negative'}, 400
 
@@ -164,14 +191,23 @@ class Product(Resource):
             description=description,
             price=price,
             image=data['image'],
-            stock=stock  # Will be 0 if not provided
+            stock=stock
         )
         
         # Save to database
         db.session.add(new_product)
         db.session.commit()
-
-        return new_product.to_dict(), 201
+        
+        print(f"Product created successfully: {new_product.id} - {new_product.name}")
+        
+        return {
+            'id': new_product.id,
+            'name': new_product.name,
+            'description': new_product.description,
+            'price': new_product.price,
+            'image': new_product.image,
+            'stock': new_product.stock
+        }, 201
     
 class ProductResource(Resource):
     def get(self, product_id):  # Add this method
@@ -245,19 +281,50 @@ class ProductResource(Resource):
         }, 200
 
     @jwt_required()
+    # def delete(self, product_id):
+    #     current_user = get_jwt_identity()
+
+    #     if current_user['role'] != 'admin':
+    #         return {'error': 'Only admins can delete products!'}, 403
+
+    #     product = Products.query.get(product_id)
+    #     if not product:
+    #         return {'error': 'Product not found!'}, 404
+
+    #     # Perform soft delete
+    #     product.deleted_at = datetime.utcnow()
+    #     db.session.commit()
+    #     return {'message': 'Product soft deleted successfully!'}, 200
+    
     def delete(self, product_id):
+        print(f"DELETE request for product ID: {product_id}")
+        
         current_user = get_jwt_identity()
-
-        if current_user['role'] != 'admin':
+        print(f"Current user from token: {current_user}")
+        
+        # Get user role properly
+        if isinstance(current_user, dict):
+            user_role = current_user.get('role')
+            user_id = current_user.get('id')
+        else:
+            # If identity is string, fetch user from database
+            user = Users.query.get(int(current_user))
+            user_role = user.role if user else None
+            user_id = current_user
+        
+        print(f"User role: {user_role}")
+        
+        if user_role != 'admin':
             return {'error': 'Only admins can delete products!'}, 403
-
+        
         product = Products.query.get(product_id)
         if not product:
             return {'error': 'Product not found!'}, 404
-
+        
         # Perform soft delete
         product.deleted_at = datetime.utcnow()
         db.session.commit()
+        
         return {'message': 'Product soft deleted successfully!'}, 200
 
 class Order(Resource):
@@ -337,7 +404,6 @@ class Order(Resource):
             }
         }, 201
 
-    
 class OrderResource(Resource):
     @jwt_required()
     def get(self, order_id=None):

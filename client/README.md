@@ -17,6 +17,45 @@ I am just from unzipping the momma_nuts_frontend-main folder i acquired from his
 
 ```bash
 
+client/
+├── node_modules/
+├── public/
+├── src/
+│ ├── assets/
+│ ├── components/
+│   ├── common/
+│   └── Layout.jsx
+│ ├── lib/
+│   ├── context/
+│     └── CommonContext.jsx
+│ ├── pages/
+│   ├── admin/
+│   ├── auth/
+│   ├── order/
+│   ├── About.jsx
+│   ├── Cart.jsx
+│   ├── Checkout.jsx
+│   ├── Home.jsx
+│   ├── Payments.jsx
+│   ├── ProductDetails.jsx
+│   ├── ProductList.jsx
+│   └── Profile.jsx
+│ ├── App.jsx
+│ ├── index.css
+│ └── main.jsx
+├── .gitignore
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── STYLEGUIDE.md
+├── tailwind.config.js
+└── vite.config.js
+
+```
+
+```bash
+
 backend/
 ├── public/
 ├── src/

@@ -3,19 +3,37 @@ import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiX } from "react-icons/fi";
 
 const API_URL = "http://127.0.0.1:5000";
 
+// Centralised option lists — add new collections/categories here as the
+// business grows. These values must match what ProductList.jsx and the
+// backend filter on, so keeping them in one place prevents typos.
+const COLLECTION_OPTIONS = [
+	{ value: "", label: "None" },
+	{ value: "summer", label: "Summer Harvest Collection" },
+];
+
+const CATEGORY_OPTIONS = [
+	{ value: "", label: "None" },
+	{ value: "bundles", label: "Bundle Deals" },
+];
+
 function Products() {
 	const [products, setProducts] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [showModal, setShowModal] = useState(false);
 	const [editingProduct, setEditingProduct] = useState(null);
+
+	// ← collection and category added to initial state
 	const [formData, setFormData] = useState({
 		name: "",
 		description: "",
 		price: "",
 		stock: "",
 		image: "",
+		collection: "",
+		category: "",
 	});
+
 	const [uploading, setUploading] = useState(false);
 
 	useEffect(() => {
@@ -42,17 +60,14 @@ function Products() {
 		if (!file) return;
 
 		setUploading(true);
-		const formData = new FormData();
-		formData.append("file", file);
-		formData.append("upload_preset", "react_uploads");
+		const uploadData = new FormData();
+		uploadData.append("file", file);
+		uploadData.append("upload_preset", "react_uploads");
 
 		try {
 			const response = await fetch(
 				`https://api.cloudinary.com/v1_1/dvjkvk71s/image/upload`,
-				{
-					method: "POST",
-					body: formData,
-				},
+				{ method: "POST", body: uploadData },
 			);
 			const data = await response.json();
 			setFormData((prev) => ({ ...prev, image: data.secure_url }));
@@ -63,39 +78,9 @@ function Products() {
 		}
 	};
 
-	// const handleSubmit = async (e) => {
-	// 	e.preventDefault();
-	// 	const token = localStorage.getItem("access_token");
-	// 	const url = editingProduct
-	// 		? `${API_URL}/products/${editingProduct.id}`
-	// 		: `${API_URL}/products`;
-	// 	const method = editingProduct ? "PATCH" : "POST";
-
-	// 	try {
-	// 		const response = await fetch(url, {
-	// 			method,
-	// 			headers: {
-	// 				"Content-Type": "application/json",
-	// 				Authorization: `Bearer ${token}`,
-	// 			},
-	// 			body: JSON.stringify(formData),
-	// 		});
-
-	// 		if (response.ok) {
-	// 			fetchProducts();
-	// 			setShowModal(false);
-	// 			resetForm();
-	// 			alert(editingProduct ? "Product updated!" : "Product created!");
-	// 		}
-	// 	} catch (error) {
-	// 		console.error("Error saving product:", error);
-	// 	}
-	// };
-
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 
-		// Validate form data
 		if (
 			!formData.name ||
 			!formData.description ||
@@ -108,9 +93,6 @@ function Products() {
 
 		setLoading(true);
 		const token = localStorage.getItem("access_token");
-
-		console.log("Token exists:", !!token);
-		console.log("Form data being sent:", formData);
 
 		if (!token) {
 			alert("You are not logged in. Please login again.");
@@ -136,10 +118,12 @@ function Products() {
 					price: parseFloat(formData.price),
 					stock: parseInt(formData.stock),
 					image: formData.image || "https://via.placeholder.com/400",
+					// Empty string → null so the backend stores NULL, not ""
+					// This means "no collection assigned" rather than a blank string
+					collection: formData.collection || null,
+					category: formData.category || null,
 				}),
 			});
-
-			console.log("Response status:", response.status);
 
 			if (response.status === 401) {
 				alert("Session expired. Please login again.");
@@ -156,7 +140,6 @@ function Products() {
 			}
 
 			const data = await response.json();
-			console.log("Response data:", data);
 
 			if (response.ok) {
 				fetchProducts();
@@ -180,10 +163,6 @@ function Products() {
 
 		const token = localStorage.getItem("access_token");
 
-		// Debug: Check if token exists
-		console.log("Token exists:", !!token);
-		console.log("Token:", token);
-
 		if (!token) {
 			alert("You are not logged in. Please login again.");
 			window.location.href = "/login";
@@ -199,8 +178,6 @@ function Products() {
 				},
 			});
 
-			console.log("Response status:", response.status);
-
 			if (response.status === 401) {
 				alert("Session expired. Please login again.");
 				localStorage.clear();
@@ -209,7 +186,7 @@ function Products() {
 			}
 
 			if (response.ok) {
-				fetchProducts(); // Refresh the list
+				fetchProducts();
 				alert("Product deleted successfully!");
 			} else {
 				const error = await response.json();
@@ -228,6 +205,8 @@ function Products() {
 			price: "",
 			stock: "",
 			image: "",
+			collection: "", // ← reset new fields
+			category: "",
 		});
 		setEditingProduct(null);
 	};
@@ -301,6 +280,21 @@ function Products() {
 							<p className="text-gray-600 text-sm mb-2 line-clamp-2">
 								{product.description}
 							</p>
+
+							{/* ← Show collection/category tags if assigned */}
+							<div className="flex gap-2 mb-2 flex-wrap">
+								{product.collection && (
+									<span className="text-xs bg-momma-pink/10 text-momma-pink px-2 py-0.5 rounded-full">
+										{product.collection}
+									</span>
+								)}
+								{product.category && (
+									<span className="text-xs bg-momma-orange/10 text-momma-orange px-2 py-0.5 rounded-full">
+										{product.category}
+									</span>
+								)}
+							</div>
+
 							<div className="flex justify-between items-center mb-3">
 								<span className="text-2xl font-bold text-momma-pink">
 									KSh {product.price?.toLocaleString()}
@@ -311,6 +305,7 @@ function Products() {
 									Stock: {product.stock}
 								</span>
 							</div>
+
 							<div className="flex gap-2">
 								<button
 									onClick={() => {
@@ -321,6 +316,9 @@ function Products() {
 											price: product.price,
 											stock: product.stock,
 											image: product.image || "",
+											collection:
+												product.collection || "", // ← pre-populate
+											category: product.category || "", // ← pre-populate
 										});
 										setShowModal(true);
 									}}
@@ -429,6 +427,58 @@ function Products() {
 										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-momma-pink"
 										required
 									/>
+								</div>
+							</div>
+
+							{/* ← New: Collection and Category dropdowns side by side */}
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<label className="block text-gray-700 font-medium mb-1">
+										Collection
+									</label>
+									<select
+										value={formData.collection}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												collection: e.target.value,
+											})
+										}
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-momma-pink bg-white"
+									>
+										{COLLECTION_OPTIONS.map((opt) => (
+											<option
+												key={opt.value}
+												value={opt.value}
+											>
+												{opt.label}
+											</option>
+										))}
+									</select>
+								</div>
+								<div>
+									<label className="block text-gray-700 font-medium mb-1">
+										Category
+									</label>
+									<select
+										value={formData.category}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												category: e.target.value,
+											})
+										}
+										className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-momma-pink bg-white"
+									>
+										{CATEGORY_OPTIONS.map((opt) => (
+											<option
+												key={opt.value}
+												value={opt.value}
+											>
+												{opt.label}
+											</option>
+										))}
+									</select>
 								</div>
 							</div>
 

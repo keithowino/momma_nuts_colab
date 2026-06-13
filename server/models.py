@@ -56,6 +56,8 @@ class Products(db.Model, SerializerMixin):
     price = db.Column(db.Float, nullable=False)
     image = db.Column(db.String(255), nullable=True)
     stock = db.Column(db.Integer, default=0)
+    collection = db.Column(db.String(100), nullable=True)  # ←
+    category = db.Column(db.String(100), nullable=True)    # ←
     deleted_at = db.Column(db.DateTime, nullable=True)
 
     # order_items = db.relationship('OrderItems', back_populates='product', lazy=True, cascade="all, delete-orphan")
@@ -73,6 +75,8 @@ class Products(db.Model, SerializerMixin):
             "price": self.price,
             "image": self.image,
             "stock": self.stock,
+            "collection": self.collection,  # ←
+            "category": self.category,      # ←
         }
         if include_comments:
             data["comments"] = [comment.to_dict() for comment in self.comments]

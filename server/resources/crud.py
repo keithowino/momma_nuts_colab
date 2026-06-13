@@ -104,19 +104,21 @@ class User(Resource):
     
 class Product(Resource):
     def get(self):
-        products = Products.query.filter_by(deleted_at=None).all()
-        if not products:
-            return {'error': 'Products not found'}, 404
-        return [
-            {
-                'id': product.id,
-                'name': product.name,
-                'description': product.description,
-                'price': product.price,
-                'image': product.image,
-                'stock': product.stock
-            } for product in products
-        ], 200
+        query = Products.query.filter_by(deleted_at=None)
+
+        collection = request.args.get('collection')
+        category = request.args.get('category')
+
+        if collection:
+            query = query.filter(Products.collection == collection)
+        if category:
+            query = query.filter(Products.category == category)
+
+        products = query.all()
+
+        # Before: returned 404 when empty — that was wrong
+        # Now: always return 200, even if the list is empty
+        return [p.to_dict(include_comments=False) for p in products], 200
     
     @jwt_required()
     def post(self):
@@ -185,13 +187,23 @@ class Product(Resource):
         if stock < 0:
             return {'error': 'Stock cannot be negative'}, 400
 
+        # new_product = Products(
+        #     name=name,
+        #     description=description,
+        #     price=price,
+        #     image=data['image'],
+        #     stock=stock
+        # )
+
         # Create new product
         new_product = Products(
             name=name,
             description=description,
             price=price,
             image=data['image'],
-            stock=stock
+            stock=stock,
+            collection=data.get('collection'),   # ← optional, None if not sent
+            category=data.get('category'),       # ← optional, None if not sent
         )
         
         # Save to database
@@ -200,14 +212,16 @@ class Product(Resource):
         
         print(f"Product created successfully: {new_product.id} - {new_product.name}")
         
-        return {
-            'id': new_product.id,
-            'name': new_product.name,
-            'description': new_product.description,
-            'price': new_product.price,
-            'image': new_product.image,
-            'stock': new_product.stock
-        }, 201
+        # return {
+        #     'id': new_product.id,
+        #     'name': new_product.name,
+        #     'description': new_product.description,
+        #     'price': new_product.price,
+        #     'image': new_product.image,
+        #     'stock': new_product.stock
+        # }, 201
+
+        return new_product.to_dict(include_comments=False), 201
     
 class ProductResource(Resource):
     def get(self, product_id):  # Add this method
@@ -244,6 +258,13 @@ class ProductResource(Resource):
         if 'name' in data:
             product.name = data['name'].strip()
 
+        if 'collection' in data:
+            # Allows setting to None (untagging) by passing null from frontend
+            product.collection = data['collection'] or None
+
+        if 'category' in data:
+            product.category = data['category'] or None
+
         if 'description' in data:
             product.description = data['description'].strip()
 
@@ -271,14 +292,16 @@ class ProductResource(Resource):
         db.session.commit()
 
         # ✅ Return the updated product instead of just a message
-        return {
-            'id': product.id,
-            'name': product.name,
-            'description': product.description,
-            'price': product.price,
-            'image': product.image,
-            'stock': product.stock
-        }, 200
+        # return {
+        #     'id': product.id,
+        #     'name': product.name,
+        #     'description': product.description,
+        #     'price': product.price,
+        #     'image': product.image,
+        #     'stock': product.stock, 
+        # }, 200
+
+        return product.to_dict(include_comments=False), 200
 
     @jwt_required()
     # def delete(self, product_id):
@@ -1110,21 +1133,73 @@ class ReplyResource(Resource):
         
         return {"message": "Reply deleted successfully!"}, 200
     
+# class LikeResource(Resource):
+#     @jwt_required()
+#     def post(self, product_id):
+#         current_user = get_jwt_identity()
+
+#         # ✅ Block likes on soft-deleted products
+#         product = Products.query.filter_by(id=product_id, deleted_at=None).first()
+#         if not product:
+#             return {"error": "Product not found or has been deleted"}, 404
+
+#         existing_like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
+#         if existing_like:
+#             return {"error": "You have already liked this product"}, 400
+
+#         like = Likes(user_id=current_user['id'], product_id=product_id)
+#         db.session.add(like)
+#         db.session.commit()
+
+#         return {"message": "Product liked successfully!"}, 201
+
+#     @jwt_required()
+#     def delete(self, product_id):
+#         current_user = get_jwt_identity()
+
+#         # ✅ Block unliking soft-deleted products
+#         product = Products.query.filter_by(id=product_id, deleted_at=None).first()
+#         if not product:
+#             return {"error": "Product not found or has been deleted"}, 404
+
+#         like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
+#         if not like:
+#             return {"error": "You have not liked this product yet"}, 400
+
+#         db.session.delete(like)
+#         db.session.commit()
+
+#         return {"message": "Like removed successfully!"}, 200
+
+#     @jwt_required()
+#     def get(self, product_id):
+#         current_user = get_jwt_identity()
+
+#         existing_like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
+#         liked = True if existing_like else False
+
+#         likes_count = Likes.query.filter_by(product_id=product_id).count()
+
+#         return {"liked": liked, "likes_count": likes_count}, 200
+
 class LikeResource(Resource):
     @jwt_required()
     def post(self, product_id):
-        current_user = get_jwt_identity()
+        # get_jwt_identity() returns the string "6", not {'id': 6}
+        user_id = int(get_jwt_identity())
 
-        # ✅ Block likes on soft-deleted products
         product = Products.query.filter_by(id=product_id, deleted_at=None).first()
         if not product:
             return {"error": "Product not found or has been deleted"}, 404
 
-        existing_like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
+        existing_like = Likes.query.filter_by(
+            user_id=user_id,
+            product_id=product_id
+        ).first()
         if existing_like:
             return {"error": "You have already liked this product"}, 400
 
-        like = Likes(user_id=current_user['id'], product_id=product_id)
+        like = Likes(user_id=user_id, product_id=product_id)
         db.session.add(like)
         db.session.commit()
 
@@ -1132,14 +1207,16 @@ class LikeResource(Resource):
 
     @jwt_required()
     def delete(self, product_id):
-        current_user = get_jwt_identity()
+        user_id = int(get_jwt_identity())
 
-        # ✅ Block unliking soft-deleted products
         product = Products.query.filter_by(id=product_id, deleted_at=None).first()
         if not product:
             return {"error": "Product not found or has been deleted"}, 404
 
-        like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
+        like = Likes.query.filter_by(
+            user_id=user_id,
+            product_id=product_id
+        ).first()
         if not like:
             return {"error": "You have not liked this product yet"}, 400
 
@@ -1150,11 +1227,16 @@ class LikeResource(Resource):
 
     @jwt_required()
     def get(self, product_id):
-        current_user = get_jwt_identity()
+        user_id = int(get_jwt_identity())
 
-        existing_like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
-        liked = True if existing_like else False
+        existing_like = Likes.query.filter_by(
+            user_id=user_id,
+            product_id=product_id
+        ).first()
 
         likes_count = Likes.query.filter_by(product_id=product_id).count()
 
-        return {"liked": liked, "likes_count": likes_count}, 200
+        return {
+            "liked": existing_like is not None,
+            "likes_count": likes_count
+        }, 200

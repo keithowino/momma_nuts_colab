@@ -6,42 +6,21 @@ import { FiX, FiFilter } from "react-icons/fi";
 
 const API_URL = "http://127.0.0.1:5000";
 
-// Maps URL param values to human-readable labels and search keywords.
-// Extend this as you add more collections/categories.
-const FILTER_CONFIG = {
+// Human-readable labels for URL param values.
+// Only needed for display — the backend does the actual filtering.
+const FILTER_LABELS = {
 	collection: {
 		summer: {
 			label: "Summer Harvest Collection",
 			description: "Light, fresh flavors perfect for the season.",
-			keywords: ["honey", "spicy", "chili", "light", "roasted", "salted"],
 		},
 	},
 	category: {
 		bundles: {
 			label: "Bundle Deals",
 			description: "Multi-pack value bundles for family and gifting.",
-			keywords: [
-				"bundle",
-				"pack",
-				"family",
-				"mix",
-				"assorted",
-				"variety",
-			],
 		},
 	},
-};
-
-// Returns products that match at least one keyword in their name or description.
-const applyFilter = (products, keywords) => {
-	if (!keywords || keywords.length === 0) return products;
-	return products.filter((p) =>
-		keywords.some(
-			(kw) =>
-				p.name?.toLowerCase().includes(kw) ||
-				p.description?.toLowerCase().includes(kw),
-		),
-	);
 };
 
 function ProductList() {
@@ -51,7 +30,7 @@ function ProductList() {
 	const [error, setError] = useState(null);
 	const [addingToCartId, setAddingToCartId] = useState(null);
 
-	// Resolve the active filter from the URL on every render
+	// Resolve which filter (if any) is active from the URL
 	const activeParamKey = searchParams.has("collection")
 		? "collection"
 		: searchParams.has("category")
@@ -60,18 +39,34 @@ function ProductList() {
 	const activeParamValue = activeParamKey
 		? searchParams.get(activeParamKey)
 		: null;
+
+	// Look up display info — falls back gracefully if the value isn't in FILTER_LABELS
 	const activeFilter =
 		activeParamKey && activeParamValue
-			? (FILTER_CONFIG[activeParamKey]?.[activeParamValue] ?? null)
+			? (FILTER_LABELS[activeParamKey]?.[activeParamValue] ?? {
+					label: activeParamValue, // fallback: show the raw param value
+					description: null,
+				})
 			: null;
 
+	// Re-fetch whenever the URL params change — clicking a carousel link
+	// updates searchParams, which triggers this effect, which re-fetches.
 	useEffect(() => {
 		fetchProducts();
-	}, []);
+	}, [searchParams]);
 
 	const fetchProducts = async () => {
+		setLoading(true);
 		try {
-			const response = await axios.get(`${API_URL}/products`);
+			// Build the params object from the URL — only include keys that are present
+			const params = {};
+			if (searchParams.get("collection"))
+				params.collection = searchParams.get("collection");
+			if (searchParams.get("category"))
+				params.category = searchParams.get("category");
+
+			// Axios serializes { collection: 'summer' } into ?collection=summer for us
+			const response = await axios.get(`${API_URL}/products`, { params });
 			setProducts(response.data);
 			setError(null);
 		} catch (err) {
@@ -112,10 +107,6 @@ function ProductList() {
 		setSearchParams({});
 	};
 
-	const displayedProducts = activeFilter
-		? applyFilter(products, activeFilter.keywords)
-		: products;
-
 	if (loading) {
 		return (
 			<div className="flex justify-center items-center h-64">
@@ -142,7 +133,7 @@ function ProductList() {
 				<h1 className="text-3xl font-bold text-momma-brown">
 					{activeFilter ? activeFilter.label : "Our Premium Peanuts"}
 				</h1>
-				{activeFilter && (
+				{activeFilter?.description && (
 					<p className="text-gray-500 mt-1">
 						{activeFilter.description}
 					</p>
@@ -160,8 +151,8 @@ function ProductList() {
 								{activeFilter.label}
 							</span>
 							{" — "}
-							{displayedProducts.length} product
-							{displayedProducts.length !== 1 ? "s" : ""}
+							{products.length} product
+							{products.length !== 1 ? "s" : ""}
 						</span>
 					</div>
 					<button
@@ -175,9 +166,9 @@ function ProductList() {
 			)}
 
 			{/* Products grid */}
-			{displayedProducts.length > 0 ? (
+			{products.length > 0 ? (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-					{displayedProducts.map((product) => (
+					{products.map((product) => (
 						<ProductCard
 							key={product.id}
 							product={product}
@@ -187,19 +178,21 @@ function ProductList() {
 					))}
 				</div>
 			) : (
-				// Empty state — filter matched nothing
 				<div className="text-center py-20">
 					<p className="text-5xl mb-4">🥜</p>
 					<h2 className="text-xl font-semibold text-momma-brown mb-2">
 						No products found
 					</h2>
 					<p className="text-gray-500 mb-6">
-						We couldn't find any products matching this filter right
-						now.
+						{activeFilter
+							? "No products have been tagged with this filter yet."
+							: "No products available right now."}
 					</p>
-					<button onClick={clearFilter} className="btn-primary">
-						View all products
-					</button>
+					{activeFilter && (
+						<button onClick={clearFilter} className="btn-primary">
+							View all products
+						</button>
+					)}
 				</div>
 			)}
 		</div>

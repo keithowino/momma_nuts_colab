@@ -40,9 +40,6 @@ const ProductCard = ({ product, onAddToCart, addingToCartId }) => {
 		if (!token) return;
 
 		try {
-			// const response = await fetch(`${API_URL}/products/${id}/likes`, {
-			// 	headers: { Authorization: `Bearer ${token}` },
-			// });
 			const response = await productAPI.getLikes(id);
 
 			// Handle 401 silently - just treat as not liked
@@ -63,50 +60,6 @@ const ProductCard = ({ product, onAddToCart, addingToCartId }) => {
 			setLikesCount(0);
 		}
 	};
-
-	// const handleLikeToggle = async (e) => {
-	// 	e.preventDefault();
-	// 	e.stopPropagation();
-
-	// 	const token = localStorage.getItem("access_token");
-	// 	if (!token) {
-	// 		alert("Please login to like products");
-	// 		return;
-	// 	}
-
-	// 	if (isLiking) return;
-	// 	setIsLiking(true);
-
-	// 	const method = liked ? "DELETE" : "POST";
-
-	// 	try {
-	// 		// const response = await fetch(`${API_URL}/products/${id}/likes`, {
-	// 		// 	method,
-	// 		// 	headers: {
-	// 		// 		Authorization: `Bearer ${token}`,
-	// 		// 		"Content-Type": "application/json",
-	// 		// 	},
-	// 		// });
-	// 		await productAPI.unlike(id);
-
-	// 		if (response.status === 401) {
-	// 			alert("Session expired. Please login again.");
-	// 			localStorage.removeItem("access_token");
-	// 			localStorage.removeItem("user");
-	// 			setIsAuthenticated(false);
-	// 			return;
-	// 		}
-
-	// 		if (response.ok) {
-	// 			setLiked(!liked);
-	// 			setLikesCount(liked ? likesCount - 1 : likesCount + 1);
-	// 		}
-	// 	} catch (error) {
-	// 		console.error("Error toggling like:", error);
-	// 	} finally {
-	// 		setIsLiking(false);
-	// 	}
-	// };
 
 	const handleLikeToggle = async (e) => {
 		e.preventDefault();

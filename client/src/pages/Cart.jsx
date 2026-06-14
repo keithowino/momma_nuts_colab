@@ -20,11 +20,6 @@ const Cart = () => {
 	const fetchCart = async () => {
 		setLoading(true);
 		try {
-			// const response = await axios.get(`${API_URL}/cart`, {
-			// 	headers: {
-			// 		Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-			// 	},
-			// });
 			const response = await cartAPI.getCart();
 			// Handle both { items: [...] } and plain array responses
 			const items = Array.isArray(response.data)
@@ -42,16 +37,6 @@ const Cart = () => {
 
 	const updateQuantity = async (productId, change) => {
 		try {
-			// await axios.post(
-			// 	`${API_URL}/cart`,
-			// 	{ product_id: productId, quantity: change },
-			// 	{
-			// 		headers: {
-			// 			Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-			// 		},
-			// 	},
-			// );
-
 			await cartAPI.updateQuantity(productId, change);
 			await fetchCart(); // Refresh after update
 		} catch (err) {
@@ -61,11 +46,6 @@ const Cart = () => {
 
 	const removeItem = async (cartId) => {
 		try {
-			// await axios.delete(`${API_URL}/cart/${cartId}`, {
-			// 	headers: {
-			// 		Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-			// 	},
-			// });
 			await cartAPI.removeItem(cartId);
 			setCartItems(cartItems.filter((item) => item.id !== cartId));
 		} catch (err) {
@@ -80,16 +60,6 @@ const Cart = () => {
 	const handleCheckout = async () => {
 		setCheckoutLoading(true);
 		try {
-			// const response = await axios.post(
-			// 	`${API_URL}/checkout`,
-			// 	{},
-			// 	{
-			// 		headers: {
-			// 			Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-			// 		},
-			// 	},
-			// );
-
 			const response = await orderAPI.checkout();
 
 			console.log("Checkout response:", response.data); // Debug log

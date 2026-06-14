@@ -218,11 +218,13 @@ const Home = () => {
 		if (quizStep < quizQuestions.length - 1) {
 			setQuizStep(quizStep + 1);
 		} else {
-			// Quiz complete - show recommendation
+			// Store answers for backend recommendation engine
 			localStorage.setItem("quizAnswers", JSON.stringify(newAnswers));
 			setShowQuiz(false);
 			setQuizStep(0);
 			setQuizAnswers({});
+
+			// Navigate to recommendations
 			navigate("/user-products?recommended=true");
 		}
 	};

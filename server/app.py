@@ -17,7 +17,7 @@ import re
 from models import db, Orders, Payments, Users
 from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt_identity, decode_token
 from jwt import ExpiredSignatureError, InvalidTokenError, decode
-from resources.crud import User, Product, Order, OrderResource, Carts, Payment, CartsResource, ProductResource, Checkout, Comment, CommentResource, CommentResourceCount, LikeResource, Reply, ReplyResource, MeResource
+from resources.crud import User, Product, Order, OrderResource, Carts, Payment, CartsResource, ProductResource, Checkout, Comment, CommentResource, CommentResourceCount, LikeResource, Reply, ReplyResource, MeResource, Recommendations
 
 load_dotenv()
 
@@ -480,6 +480,7 @@ api.add_resource(LikeResource, '/products/<int:product_id>/likes')
 
 api.add_resource(ForgotPassword, '/forgot-password')
 api.add_resource(ResetPassword, '/reset-password')
+api.add_resource(Recommendations, '/recommendations')
 
 if __name__ == '__main__':
     app.run(debug=True)

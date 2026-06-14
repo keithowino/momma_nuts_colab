@@ -15,6 +15,14 @@ If you are developing a production application, we recommend using TypeScript an
 
 I am just from unzipping the momma_nuts_frontend-main folder i acquired from his frontend repo - https://github.com/thedann3r/momma_nuts_frontend and this is the file structure
 
+```js
+// Add state for recommendation reasons
+const [recommendationReasons, setRecommendationReasons] = useState({});
+
+// When fetching recommendations, also track reasons
+// You'd need to extend the backend to return reason metadata
+```
+
 ```bash
 
 client/

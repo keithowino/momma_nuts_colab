@@ -49,24 +49,61 @@ function ProductList() {
 				})
 			: null;
 
-	// Re-fetch whenever the URL params change — clicking a carousel link
-	// updates searchParams, which triggers this effect, which re-fetches.
 	useEffect(() => {
 		fetchProducts();
 	}, [searchParams]);
 
+	// const fetchProducts = async () => {
+	// 	setLoading(true);
+	// 	try {
+	// 		// Build the params object from the URL — only include keys that are present
+	// 		const params = {};
+	// 		if (searchParams.get("collection"))
+	// 			params.collection = searchParams.get("collection");
+	// 		if (searchParams.get("category"))
+	// 			params.category = searchParams.get("category");
+
+	// 		// Axios serializes { collection: 'summer' } into ?collection=summer for us
+	// 		const response = await axios.get(`${API_URL}/products`, { params });
+	// 		setProducts(response.data);
+	// 		setError(null);
+	// 	} catch (err) {
+	// 		setError("Failed to load products");
+	// 		console.error(err);
+	// 	} finally {
+	// 		setLoading(false);
+	// 	}
+	// };
+
 	const fetchProducts = async () => {
 		setLoading(true);
 		try {
-			// Build the params object from the URL — only include keys that are present
-			const params = {};
-			if (searchParams.get("collection"))
-				params.collection = searchParams.get("collection");
-			if (searchParams.get("category"))
-				params.category = searchParams.get("category");
+			let response;
 
-			// Axios serializes { collection: 'summer' } into ?collection=summer for us
-			const response = await axios.get(`${API_URL}/products`, { params });
+			// Check if we're showing recommendations
+			if (searchParams.get("recommended") === "true") {
+				const token = localStorage.getItem("access_token");
+				const quizAnswers = localStorage.getItem("quizAnswers");
+
+				const headers = {};
+				if (token) headers.Authorization = `Bearer ${token}`;
+
+				let url = `${API_URL}/recommendations`;
+				if (quizAnswers) {
+					url += `?quiz_answers=${encodeURIComponent(quizAnswers)}`;
+				}
+
+				response = await axios.get(url, { headers });
+			} else {
+				// Build the params object from the URL for regular filtering
+				const params = {};
+				if (searchParams.get("collection"))
+					params.collection = searchParams.get("collection");
+				if (searchParams.get("category"))
+					params.category = searchParams.get("category");
+				response = await axios.get(`${API_URL}/products`, { params });
+			}
+
 			setProducts(response.data);
 			setError(null);
 		} catch (err) {
@@ -131,12 +168,27 @@ function ProductList() {
 			{/* Page header */}
 			<div className="mb-8">
 				<h1 className="text-3xl font-bold text-momma-brown">
-					{activeFilter ? activeFilter.label : "Our Premium Peanuts"}
+					{searchParams.get("recommended") === "true"
+						? "Recommended for You 🎯"
+						: activeFilter
+							? activeFilter.label
+							: "Our Premium Peanuts"}
 				</h1>
 				{activeFilter?.description && (
 					<p className="text-gray-500 mt-1">
 						{activeFilter.description}
 					</p>
+				)}
+				{searchParams.get("recommended") === "true" && (
+					<div className="bg-momma-pink/10 border border-momma-pink/20 rounded-2xl px-5 py-3 mb-8">
+						<div className="flex items-center gap-2 text-momma-brown text-sm">
+							<span className="text-xl">🎯</span>
+							<span>
+								Personalized picks based on your preferences and
+								shopping history
+							</span>
+						</div>
+					</div>
 				)}
 			</div>
 

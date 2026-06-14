@@ -18,8 +18,8 @@ export const CommonProvider = ({ children }) => {
 	const [navItems, setNavItems] = useState([
 		{ path: "/", label: "Home", icon: FiHome },
 		{ path: "/user-products", label: "Shop", icon: FiPackage },
-		{ path: "/cart", label: "Cart", icon: FiShoppingCart },
 		{ path: "/about", label: "About", icon: FiBookOpen },
+		{ path: "/cart", label: "Cart", icon: FiShoppingCart },
 	]);
 	const [heroCarousel, setHeroCarousel] = useState([
 		{

@@ -6,9 +6,151 @@ from datetime import datetime, timedelta
 # from werkzeug.security import check_password_hash 
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import func, and_
 
 app = Flask(__name__)  
 bcrypt = Bcrypt(app)
+
+class Recommendations(Resource):
+    @jwt_required()
+    def get(self):
+        """Get personalized product recommendations"""
+        user_id = int(get_jwt_identity())
+        
+        # Get quiz answers from request args (passed from frontend)
+        quiz_answers = request.args.get('quiz_answers')
+        if quiz_answers:
+            import json
+            quiz_answers = json.loads(quiz_answers)
+        
+        recommended_products = []
+        
+        # Strategy 1: Quiz-based recommendations (for new users)
+        if quiz_answers and len(quiz_answers) == 3:
+            quiz_recommendations = self.get_quiz_recommendations(quiz_answers)
+            recommended_products.extend(quiz_recommendations)
+        
+        # Strategy 2: Based on user's liked products (for returning users)
+        user_likes = Likes.query.filter_by(user_id=user_id).all()
+        if user_likes:
+            liked_recommendations = self.get_similar_products_from_likes(user_likes)
+            recommended_products.extend(liked_recommendations)
+        
+        # Strategy 3: Based on purchase history
+        user_orders = Orders.query.filter_by(user_id=user_id).all()
+        if user_orders:
+            purchase_recommendations = self.get_purchase_based_recommendations(user_orders)
+            recommended_products.extend(purchase_recommendations)
+        
+        # Remove duplicates and limit to 8 products
+        seen_ids = set()
+        unique_products = []
+        for product in recommended_products:
+            if product['id'] not in seen_ids:
+                seen_ids.add(product['id'])
+                unique_products.append(product)
+        
+        return unique_products[:8], 200
+    
+    def get_quiz_recommendations(self, quiz_answers):
+        """Match quiz answers to product categories/collections"""
+        # Map quiz answers to categories/collections
+        recipient = quiz_answers.get('0', '').lower()  # Who are you shopping for?
+        flavor = quiz_answers.get('1', '').lower()     # Flavor preference
+        budget = quiz_answers.get('2', '')             # Budget range
+        
+        recommendations = []
+        query = Products.query.filter_by(deleted_at=None)
+        
+        # Flavor-based matching
+        if 'sweet' in flavor or 'honey' in flavor:
+            query = query.filter(
+                (Products.name.ilike('%honey%')) |
+                (Products.description.ilike('%sweet%')) |
+                (Products.category == 'sweet')
+            )
+        elif 'spicy' in flavor or 'bold' in flavor:
+            query = query.filter(
+                (Products.name.ilike('%spicy%')) |
+                (Products.name.ilike('%chili%')) |
+                (Products.description.ilike('%spice%'))
+            )
+        elif 'chocolate' in flavor:
+            query = query.filter(
+                (Products.name.ilike('%chocolate%')) |
+                (Products.name.ilike('%peanut butter cup%'))
+            )
+        
+        # Budget-based filtering
+        budget_map = {
+            'under $15': (0, 15),
+            '$15-$25': (15, 25),
+            '$25-$40': (25, 40),
+            '$40+': (40, float('inf'))
+        }
+        if budget in budget_map:
+            min_price, max_price = budget_map[budget]
+            query = query.filter(Products.price >= min_price, Products.price <= max_price)
+        
+        products = query.limit(6).all()
+        
+        for product in products:
+            recommendations.append(product.to_dict(include_comments=False))
+        
+        return recommendations
+    
+    def get_similar_products_from_likes(self, user_likes):
+        """Find products similar to ones the user liked"""
+        liked_product_ids = [like.product_id for like in user_likes]
+        
+        # Get products that share categories/collections with liked products
+        liked_products = Products.query.filter(
+            Products.id.in_(liked_product_ids),
+            Products.deleted_at.is_(None)
+        ).all()
+        
+        similar_products = []
+        for liked in liked_products:
+            # Find products with same category or collection
+            similar = Products.query.filter(
+                Products.deleted_at.is_(None),
+                Products.id != liked.id,
+                (
+                    (Products.category == liked.category) |
+                    (Products.collection == liked.collection)
+                )
+            ).limit(4).all()
+            similar_products.extend(similar)
+        
+        return [p.to_dict(include_comments=False) for p in similar_products]
+    
+    def get_purchase_based_recommendations(self, user_orders):
+        """Recommend products based on purchase history"""
+        purchased_product_ids = []
+        for order in user_orders:
+            for item in order.items:
+                purchased_product_ids.append(item.product_id)
+        
+        if not purchased_product_ids:
+            return []
+        
+        # Get frequently bought together products
+        # Find products that appear in same orders as purchased products
+        order_ids = [order.id for order in user_orders]
+        
+        # Get other products from same orders
+        frequently_bought = db.session.query(OrderItems.product_id, func.count(OrderItems.product_id).label('count'))\
+            .filter(OrderItems.order_id.in_(order_ids))\
+            .filter(~OrderItems.product_id.in_(purchased_product_ids))\
+            .group_by(OrderItems.product_id)\
+            .order_by(func.count(OrderItems.product_id).desc())\
+            .limit(8)\
+            .all()
+        
+        product_ids = [pb[0] for pb in frequently_bought]
+        products = Products.query.filter(Products.id.in_(product_ids)).all()
+        
+        return [p.to_dict(include_comments=False) for p in products]
 
 class MeResource(Resource):
     @jwt_required()
@@ -1133,55 +1275,6 @@ class ReplyResource(Resource):
         
         return {"message": "Reply deleted successfully!"}, 200
     
-# class LikeResource(Resource):
-#     @jwt_required()
-#     def post(self, product_id):
-#         current_user = get_jwt_identity()
-
-#         # ✅ Block likes on soft-deleted products
-#         product = Products.query.filter_by(id=product_id, deleted_at=None).first()
-#         if not product:
-#             return {"error": "Product not found or has been deleted"}, 404
-
-#         existing_like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
-#         if existing_like:
-#             return {"error": "You have already liked this product"}, 400
-
-#         like = Likes(user_id=current_user['id'], product_id=product_id)
-#         db.session.add(like)
-#         db.session.commit()
-
-#         return {"message": "Product liked successfully!"}, 201
-
-#     @jwt_required()
-#     def delete(self, product_id):
-#         current_user = get_jwt_identity()
-
-#         # ✅ Block unliking soft-deleted products
-#         product = Products.query.filter_by(id=product_id, deleted_at=None).first()
-#         if not product:
-#             return {"error": "Product not found or has been deleted"}, 404
-
-#         like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
-#         if not like:
-#             return {"error": "You have not liked this product yet"}, 400
-
-#         db.session.delete(like)
-#         db.session.commit()
-
-#         return {"message": "Like removed successfully!"}, 200
-
-#     @jwt_required()
-#     def get(self, product_id):
-#         current_user = get_jwt_identity()
-
-#         existing_like = Likes.query.filter_by(user_id=current_user['id'], product_id=product_id).first()
-#         liked = True if existing_like else False
-
-#         likes_count = Likes.query.filter_by(product_id=product_id).count()
-
-#         return {"liked": liked, "likes_count": likes_count}, 200
-
 class LikeResource(Resource):
     @jwt_required()
     def post(self, product_id):

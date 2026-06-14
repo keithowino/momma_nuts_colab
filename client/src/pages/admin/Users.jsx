@@ -9,6 +9,7 @@ import {
 	FiSearch,
 	FiDownload,
 } from "react-icons/fi";
+import { userAPI } from "../../lib/config/api";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -18,18 +19,17 @@ function Users() {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [showModal, setShowModal] = useState(false);
 	const [selectedUser, setSelectedUser] = useState(null);
+	const [updatingUserId, setUpdatingUserId] = useState(null);
+	const [deletingUserId, setDeletingUserId] = useState(null);
 
 	useEffect(() => {
 		fetchUsers();
 	}, []);
 
 	const fetchUsers = async () => {
-		const token = localStorage.getItem("access_token");
 		try {
-			const response = await fetch(`${API_URL}/users`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const data = await response.json();
+			const response = await userAPI.getAll();
+			const data = response.data; // ← FIX: use response.data, not response.json()
 			setUsers(Array.isArray(data) ? data : []);
 		} catch (error) {
 			console.error("Error fetching users:", error);
@@ -38,50 +38,87 @@ function Users() {
 		}
 	};
 
+	// const toggleUserRole = async (userId, currentRole) => {
+	// 	const token = localStorage.getItem("access_token");
+	// 	const newRole = currentRole === "admin" ? "user" : "admin";
+
+	// 	try {
+	// 		const response = await fetch(`${API_URL}/users/${userId}`, {
+	// 			method: "PATCH",
+	// 			headers: {
+	// 				"Content-Type": "application/json",
+	// 				Authorization: `Bearer ${token}`,
+	// 			},
+	// 			body: JSON.stringify({ role: newRole }),
+	// 		});
+
+	// 		if (response.ok) {
+	// 			fetchUsers();
+	// 			alert(`User role updated to ${newRole}`);
+	// 		}
+	// 	} catch (error) {
+	// 		console.error("Error updating user role:", error);
+	// 	}
+	// };
+
+	// const deleteUser = async (userId) => {
+	// 	if (!window.confirm("Are you sure you want to delete this user?"))
+	// 		return;
+
+	// 	const token = localStorage.getItem("access_token");
+	// 	try {
+	// 		const response = await fetch(`${API_URL}/delete`, {
+	// 			method: "DELETE",
+	// 			headers: {
+	// 				"Content-Type": "application/json",
+	// 				Authorization: `Bearer ${token}`,
+	// 			},
+	// 			body: JSON.stringify({ user_id: userId }),
+	// 		});
+
+	// 		if (response.ok) {
+	// 			fetchUsers();
+	// 			alert("User deleted successfully");
+	// 		}
+	// 	} catch (error) {
+	// 		console.error("Error deleting user:", error);
+	// 	}
+	// };
+
 	const toggleUserRole = async (userId, currentRole) => {
-		const token = localStorage.getItem("access_token");
 		const newRole = currentRole === "admin" ? "user" : "admin";
+		setUpdatingUserId(userId);
 
 		try {
-			const response = await fetch(`${API_URL}/users/${userId}`, {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ role: newRole }),
-			});
-
-			if (response.ok) {
-				fetchUsers();
-				alert(`User role updated to ${newRole}`);
-			}
+			await userAPI.updateRole(userId, newRole);
+			await fetchUsers(); // Refresh the list
+			alert(`User role updated to ${newRole}`);
 		} catch (error) {
 			console.error("Error updating user role:", error);
+			alert(error.response?.data?.error || "Failed to update user role");
+		} finally {
+			setUpdatingUserId(null);
 		}
 	};
 
 	const deleteUser = async (userId) => {
-		if (!window.confirm("Are you sure you want to delete this user?"))
+		if (
+			!window.confirm(
+				"Are you sure you want to delete this user? This action cannot be undone!",
+			)
+		)
 			return;
 
-		const token = localStorage.getItem("access_token");
+		setDeletingUserId(userId);
 		try {
-			const response = await fetch(`${API_URL}/delete`, {
-				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ user_id: userId }),
-			});
-
-			if (response.ok) {
-				fetchUsers();
-				alert("User deleted successfully");
-			}
+			await userAPI.deleteAccount(userId);
+			await fetchUsers(); // Refresh the list
+			alert("User deleted successfully");
 		} catch (error) {
 			console.error("Error deleting user:", error);
+			alert(error.response?.data?.error || "Failed to delete user");
+		} finally {
+			setDeletingUserId(null);
 		}
 	};
 

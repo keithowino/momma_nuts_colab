@@ -10,8 +10,6 @@ import {
 import {
 	LineChart,
 	Line,
-	BarChart,
-	Bar,
 	XAxis,
 	YAxis,
 	CartesianGrid,
@@ -22,8 +20,7 @@ import {
 	Pie,
 	Cell,
 } from "recharts";
-
-const API_URL = "http://127.0.0.1:5000";
+import { orderAPI, productAPI, userAPI } from "../../lib/config/api";
 
 const StatCard = ({ title, value, icon: Icon, trend, trendValue, color }) => (
 	<div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
@@ -65,31 +62,39 @@ function Dashboard() {
 	const [recentOrders, setRecentOrders] = useState([]);
 	const [loading, setLoading] = useState(true);
 
+	// Sample data for charts
+	const salesData = [
+		{ month: "Jan", sales: 4000 },
+		{ month: "Feb", sales: 3000 },
+		{ month: "Mar", sales: 5000 },
+		{ month: "Apr", sales: 7000 },
+		{ month: "May", sales: 6000 },
+		{ month: "Jun", sales: 8000 },
+	];
+
+	const orderStatusData = [
+		{ name: "Completed", value: stats.completed || 0, color: "#10B981" },
+		{ name: "Pending", value: stats.pending || 0, color: "#F59E0B" },
+		{ name: "Canceled", value: stats.canceled || 0, color: "#EF4444" },
+	];
+
 	useEffect(() => {
 		fetchDashboardData();
 	}, []);
 
 	const fetchDashboardData = async () => {
-		const token = localStorage.getItem("access_token");
-
 		try {
-			// Fetch products
-			const productsRes = await fetch(`${API_URL}/products`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const products = await productsRes.json();
+			// Fetch all data in parallel
+			const [productsRes, ordersRes, usersRes] = await Promise.all([
+				productAPI.getAll(),
+				orderAPI.getAll(),
+				userAPI.getAll(),
+			]);
 
-			// Fetch orders
-			const ordersRes = await fetch(`${API_URL}/orders`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const orders = await ordersRes.json();
-
-			// Fetch users
-			const usersRes = await fetch(`${API_URL}/users`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const users = await usersRes.json();
+			// Axios returns data in response.data
+			const products = productsRes.data;
+			const orders = ordersRes.data;
+			const users = usersRes.data;
 
 			const totalRevenue = Array.isArray(orders)
 				? orders.reduce(
@@ -98,11 +103,25 @@ function Dashboard() {
 					)
 				: 0;
 
+			// Calculate order status counts
+			const completed = Array.isArray(orders)
+				? orders.filter((o) => o.status === "completed").length
+				: 0;
+			const pending = Array.isArray(orders)
+				? orders.filter((o) => o.status === "pending").length
+				: 0;
+			const canceled = Array.isArray(orders)
+				? orders.filter((o) => o.status === "canceled").length
+				: 0;
+
 			setStats({
 				products: Array.isArray(products) ? products.length : 0,
 				orders: Array.isArray(orders) ? orders.length : 0,
 				users: Array.isArray(users) ? users.length : 0,
 				revenue: totalRevenue,
+				completed,
+				pending,
+				canceled,
 			});
 
 			setRecentOrders(Array.isArray(orders) ? orders.slice(0, 5) : []);
@@ -162,7 +181,7 @@ function Dashboard() {
 						Sales Trend
 					</h3>
 					<ResponsiveContainer width="100%" height={300}>
-						{/* <LineChart data={salesData}>
+						<LineChart data={salesData}>
 							<CartesianGrid strokeDasharray="3 3" />
 							<XAxis dataKey="month" />
 							<YAxis />
@@ -174,7 +193,7 @@ function Dashboard() {
 								stroke="#FF3CB0"
 								strokeWidth={2}
 							/>
-						</LineChart> */}
+						</LineChart>
 					</ResponsiveContainer>
 				</div>
 
@@ -185,7 +204,7 @@ function Dashboard() {
 					</h3>
 					<ResponsiveContainer width="100%" height={300}>
 						<PieChart>
-							{/* <Pie
+							<Pie
 								data={orderStatusData}
 								cx="50%"
 								cy="50%"
@@ -203,7 +222,7 @@ function Dashboard() {
 										fill={entry.color}
 									/>
 								))}
-							</Pie> */}
+							</Pie>
 							<Tooltip />
 						</PieChart>
 					</ResponsiveContainer>
@@ -263,6 +282,16 @@ function Dashboard() {
 									</td>
 								</tr>
 							))}
+							{recentOrders.length === 0 && (
+								<tr>
+									<td
+										colSpan="4"
+										className="px-6 py-8 text-center text-gray-500"
+									>
+										No orders found
+									</td>
+								</tr>
+							)}
 						</tbody>
 					</table>
 				</div>

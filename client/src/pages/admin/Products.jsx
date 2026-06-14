@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiX } from "react-icons/fi";
+import { productAPI } from "../../lib/config/api";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -43,10 +44,11 @@ function Products() {
 	const fetchProducts = async () => {
 		const token = localStorage.getItem("access_token");
 		try {
-			const response = await fetch(`${API_URL}/products`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const data = await response.json();
+			// const response = await fetch(`${API_URL}/products`, {
+			// 	headers: { Authorization: `Bearer ${token}` },
+			// });
+			const response = await productAPI.getAll();
+			const data = await response.data;
 			setProducts(Array.isArray(data) ? data : []);
 		} catch (error) {
 			console.error("Error fetching products:", error);
@@ -78,6 +80,126 @@ function Products() {
 		}
 	};
 
+	// const handleSubmit = async (e) => {
+	// 	e.preventDefault();
+
+	// 	if (
+	// 		!formData.name ||
+	// 		!formData.description ||
+	// 		!formData.price ||
+	// 		!formData.stock
+	// 	) {
+	// 		alert("Please fill in all required fields");
+	// 		return;
+	// 	}
+
+	// 	setLoading(true);
+	// 	const token = localStorage.getItem("access_token");
+
+	// 	if (!token) {
+	// 		alert("You are not logged in. Please login again.");
+	// 		setLoading(false);
+	// 		return;
+	// 	}
+
+	// 	const url = editingProduct
+	// 		? `${API_URL}/products/${editingProduct.id}`
+	// 		: `${API_URL}/products`;
+	// 	const method = editingProduct ? "PATCH" : "POST";
+
+	// 	try {
+	// 		const response = await fetch(url, {
+	// 			method,
+	// 			headers: {
+	// 				"Content-Type": "application/json",
+	// 				Authorization: `Bearer ${token}`,
+	// 			},
+	// 			body: JSON.stringify({
+	// 				name: formData.name,
+	// 				description: formData.description,
+	// 				price: parseFloat(formData.price),
+	// 				stock: parseInt(formData.stock),
+	// 				image: formData.image || "https://via.placeholder.com/400",
+	// 				// Empty string → null so the backend stores NULL, not ""
+	// 				// This means "no collection assigned" rather than a blank string
+	// 				collection: formData.collection || null,
+	// 				category: formData.category || null,
+	// 			}),
+	// 		});
+
+	// 		if (response.status === 401) {
+	// 			alert("Session expired. Please login again.");
+	// 			localStorage.clear();
+	// 			window.location.href = "/login";
+	// 			return;
+	// 		}
+
+	// 		if (response.status === 403) {
+	// 			alert(
+	// 				"You don't have permission to add products. Admin access required.",
+	// 			);
+	// 			return;
+	// 		}
+
+	// 		const data = await response.json();
+
+	// 		if (response.ok) {
+	// 			fetchProducts();
+	// 			setShowModal(false);
+	// 			resetForm();
+	// 			alert(editingProduct ? "Product updated!" : "Product created!");
+	// 		} else {
+	// 			alert(data.error || "Failed to save product");
+	// 		}
+	// 	} catch (error) {
+	// 		console.error("Error saving product:", error);
+	// 		alert("Network error. Please check if backend is running.");
+	// 	} finally {
+	// 		setLoading(false);
+	// 	}
+	// };
+
+	// const handleDelete = async (id) => {
+	// 	if (!window.confirm("Are you sure you want to delete this product?"))
+	// 		return;
+
+	// 	const token = localStorage.getItem("access_token");
+
+	// 	if (!token) {
+	// 		alert("You are not logged in. Please login again.");
+	// 		window.location.href = "/login";
+	// 		return;
+	// 	}
+
+	// 	try {
+	// 		const response = await fetch(`${API_URL}/products/${id}`, {
+	// 			method: "DELETE",
+	// 			headers: {
+	// 				Authorization: `Bearer ${token}`,
+	// 				"Content-Type": "application/json",
+	// 			},
+	// 		});
+
+	// 		if (response.status === 401) {
+	// 			alert("Session expired. Please login again.");
+	// 			localStorage.clear();
+	// 			window.location.href = "/login";
+	// 			return;
+	// 		}
+
+	// 		if (response.ok) {
+	// 			fetchProducts();
+	// 			alert("Product deleted successfully!");
+	// 		} else {
+	// 			const error = await response.json();
+	// 			alert(error.error || "Failed to delete product");
+	// 		}
+	// 	} catch (error) {
+	// 		console.error("Error deleting product:", error);
+	// 		alert("Network error. Please try again.");
+	// 	}
+	// };
+
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 
@@ -92,66 +214,43 @@ function Products() {
 		}
 
 		setLoading(true);
-		const token = localStorage.getItem("access_token");
 
-		if (!token) {
-			alert("You are not logged in. Please login again.");
-			setLoading(false);
-			return;
-		}
-
-		const url = editingProduct
-			? `${API_URL}/products/${editingProduct.id}`
-			: `${API_URL}/products`;
-		const method = editingProduct ? "PATCH" : "POST";
+		const productData = {
+			name: formData.name,
+			description: formData.description,
+			price: parseFloat(formData.price),
+			stock: parseInt(formData.stock),
+			image: formData.image || "https://via.placeholder.com/400",
+			collection: formData.collection || null,
+			category: formData.category || null,
+		};
 
 		try {
-			const response = await fetch(url, {
-				method,
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					name: formData.name,
-					description: formData.description,
-					price: parseFloat(formData.price),
-					stock: parseInt(formData.stock),
-					image: formData.image || "https://via.placeholder.com/400",
-					// Empty string → null so the backend stores NULL, not ""
-					// This means "no collection assigned" rather than a blank string
-					collection: formData.collection || null,
-					category: formData.category || null,
-				}),
-			});
-
-			if (response.status === 401) {
-				alert("Session expired. Please login again.");
-				localStorage.clear();
-				window.location.href = "/login";
-				return;
-			}
-
-			if (response.status === 403) {
-				alert(
-					"You don't have permission to add products. Admin access required.",
+			let response;
+			if (editingProduct) {
+				response = await productAPI.update(
+					editingProduct.id,
+					productData,
 				);
-				return;
-			}
-
-			const data = await response.json();
-
-			if (response.ok) {
-				fetchProducts();
-				setShowModal(false);
-				resetForm();
-				alert(editingProduct ? "Product updated!" : "Product created!");
+				alert("Product updated successfully!");
 			} else {
-				alert(data.error || "Failed to save product");
+				response = await productAPI.create(productData);
+				alert("Product created successfully!");
 			}
+
+			await fetchProducts(); // Refresh the list
+			setShowModal(false);
+			resetForm();
 		} catch (error) {
 			console.error("Error saving product:", error);
-			alert("Network error. Please check if backend is running.");
+			const errorMsg =
+				error.response?.data?.error || "Failed to save product";
+			alert(errorMsg);
+
+			// Handle 403 Forbidden
+			if (error.response?.status === 403) {
+				alert("Admin access required to manage products");
+			}
 		} finally {
 			setLoading(false);
 		}
@@ -161,40 +260,19 @@ function Products() {
 		if (!window.confirm("Are you sure you want to delete this product?"))
 			return;
 
-		const token = localStorage.getItem("access_token");
-
-		if (!token) {
-			alert("You are not logged in. Please login again.");
-			window.location.href = "/login";
-			return;
-		}
-
 		try {
-			const response = await fetch(`${API_URL}/products/${id}`, {
-				method: "DELETE",
-				headers: {
-					Authorization: `Bearer ${token}`,
-					"Content-Type": "application/json",
-				},
-			});
-
-			if (response.status === 401) {
-				alert("Session expired. Please login again.");
-				localStorage.clear();
-				window.location.href = "/login";
-				return;
-			}
-
-			if (response.ok) {
-				fetchProducts();
-				alert("Product deleted successfully!");
-			} else {
-				const error = await response.json();
-				alert(error.error || "Failed to delete product");
-			}
+			await productAPI.delete(id);
+			await fetchProducts(); // Refresh the list
+			alert("Product deleted successfully!");
 		} catch (error) {
 			console.error("Error deleting product:", error);
-			alert("Network error. Please try again.");
+			const errorMsg =
+				error.response?.data?.error || "Failed to delete product";
+			alert(errorMsg);
+
+			if (error.response?.status === 403) {
+				alert("Admin access required to delete products");
+			}
 		}
 	};
 

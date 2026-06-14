@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import axios from "axios";
 import ProductCard from "../components/common/ProductCard";
 import { FiX, FiFilter } from "react-icons/fi";
+import { productAPI, recommendationAPI, cartAPI } from "../lib/config/api";
 
-const API_URL = "http://127.0.0.1:5000";
-
-// Human-readable labels for URL param values.
-// Only needed for display — the backend does the actual filtering.
+// Human-readable labels for URL param values
 const FILTER_LABELS = {
 	collection: {
 		summer: {
@@ -30,7 +27,6 @@ function ProductList() {
 	const [error, setError] = useState(null);
 	const [addingToCartId, setAddingToCartId] = useState(null);
 
-	// Resolve which filter (if any) is active from the URL
 	const activeParamKey = searchParams.has("collection")
 		? "collection"
 		: searchParams.has("category")
@@ -40,11 +36,10 @@ function ProductList() {
 		? searchParams.get(activeParamKey)
 		: null;
 
-	// Look up display info — falls back gracefully if the value isn't in FILTER_LABELS
 	const activeFilter =
 		activeParamKey && activeParamValue
 			? (FILTER_LABELS[activeParamKey]?.[activeParamValue] ?? {
-					label: activeParamValue, // fallback: show the raw param value
+					label: activeParamValue,
 					description: null,
 				})
 			: null;
@@ -53,55 +48,27 @@ function ProductList() {
 		fetchProducts();
 	}, [searchParams]);
 
-	// const fetchProducts = async () => {
-	// 	setLoading(true);
-	// 	try {
-	// 		// Build the params object from the URL — only include keys that are present
-	// 		const params = {};
-	// 		if (searchParams.get("collection"))
-	// 			params.collection = searchParams.get("collection");
-	// 		if (searchParams.get("category"))
-	// 			params.category = searchParams.get("category");
-
-	// 		// Axios serializes { collection: 'summer' } into ?collection=summer for us
-	// 		const response = await axios.get(`${API_URL}/products`, { params });
-	// 		setProducts(response.data);
-	// 		setError(null);
-	// 	} catch (err) {
-	// 		setError("Failed to load products");
-	// 		console.error(err);
-	// 	} finally {
-	// 		setLoading(false);
-	// 	}
-	// };
-
 	const fetchProducts = async () => {
 		setLoading(true);
 		try {
 			let response;
 
-			// Check if we're showing recommendations
 			if (searchParams.get("recommended") === "true") {
 				const token = localStorage.getItem("access_token");
-				const quizAnswers = localStorage.getItem("quizAnswers");
-
-				const headers = {};
-				if (token) headers.Authorization = `Bearer ${token}`;
-
-				let url = `${API_URL}/recommendations`;
-				if (quizAnswers) {
-					url += `?quiz_answers=${encodeURIComponent(quizAnswers)}`;
+				if (!token) {
+					setSearchParams({});
+					return;
 				}
-
-				response = await axios.get(url, { headers });
+				const quizAnswers = localStorage.getItem("quizAnswers");
+				response =
+					await recommendationAPI.getRecommendations(quizAnswers);
 			} else {
-				// Build the params object from the URL for regular filtering
 				const params = {};
 				if (searchParams.get("collection"))
 					params.collection = searchParams.get("collection");
 				if (searchParams.get("category"))
 					params.category = searchParams.get("category");
-				response = await axios.get(`${API_URL}/products`, { params });
+				response = await productAPI.getAll(params);
 			}
 
 			setProducts(response.data);
@@ -122,11 +89,7 @@ function ProductList() {
 		}
 		setAddingToCartId(productId);
 		try {
-			await axios.post(
-				`${API_URL}/cart`,
-				{ product_id: productId, quantity: 1 },
-				{ headers: { Authorization: `Bearer ${token}` } },
-			);
+			await cartAPI.addItem(productId, 1);
 			window.dispatchEvent(
 				new CustomEvent("cartUpdated", {
 					detail: { productId, productName },
@@ -165,7 +128,6 @@ function ProductList() {
 
 	return (
 		<div>
-			{/* Page header */}
 			<div className="mb-8">
 				<h1 className="text-3xl font-bold text-momma-brown">
 					{searchParams.get("recommended") === "true"
@@ -180,7 +142,7 @@ function ProductList() {
 					</p>
 				)}
 				{searchParams.get("recommended") === "true" && (
-					<div className="bg-momma-pink/10 border border-momma-pink/20 rounded-2xl px-5 py-3 mb-8">
+					<div className="bg-momma-pink/10 border border-momma-pink/20 rounded-2xl px-5 py-3 mt-4">
 						<div className="flex items-center gap-2 text-momma-brown text-sm">
 							<span className="text-xl">🎯</span>
 							<span>
@@ -192,7 +154,6 @@ function ProductList() {
 				)}
 			</div>
 
-			{/* Active filter banner */}
 			{activeFilter && (
 				<div className="flex items-center justify-between bg-momma-pink/10 border border-momma-pink/20 rounded-2xl px-5 py-3 mb-8">
 					<div className="flex items-center gap-2 text-momma-brown text-sm">
@@ -217,7 +178,6 @@ function ProductList() {
 				</div>
 			)}
 
-			{/* Products grid */}
 			{products.length > 0 ? (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{products.map((product) => (

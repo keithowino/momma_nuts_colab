@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { Navigate, Link, useNavigate } from "react-router-dom";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn } from "react-icons/fi";
 import momma from "../../assets/mommanut.png";
-
-const API_URL = "http://127.0.0.1:5000";
+import { authAPI } from "../../lib/config/api";
 
 function Login() {
 	const navigate = useNavigate();
@@ -21,15 +20,13 @@ function Login() {
 		setError("");
 
 		try {
-			const response = await fetch(`${API_URL}/login`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ identifier, password }),
-			});
+			// authAPI.login returns axios response - the data is in response.data
+			const response = await authAPI.login({ identifier, password });
+			const data = response.data; // ← KEY FIX: axios returns data in response.data
 
-			const data = await response.json();
+			console.log("Login response:", data); // Debug log
 
-			if (!response.ok) {
+			if (!data.create_token) {
 				setError(data.error || "Invalid credentials");
 				setLoading(false);
 				return;
@@ -53,7 +50,6 @@ function Login() {
 			setToken(data.create_token);
 			setUser({ name: data.user.name, role: data.user.role });
 
-			// Use alert as in original
 			alert(`Welcome ${data.user.name}, you are logged in successfully.`);
 
 			setTimeout(() => {
@@ -63,7 +59,11 @@ function Login() {
 			}, 100);
 		} catch (error) {
 			console.error("Login error:", error);
-			setError("Network error. Please try again.");
+			setError(
+				error.response?.data?.error ||
+					error.response?.data?.message ||
+					"Network error. Please try again.",
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -82,7 +82,7 @@ function Login() {
 			<div className="max-w-4xl w-full">
 				<div className="bg-white rounded-2xl shadow-xl overflow-hidden">
 					<div className="grid grid-cols-1 md:grid-cols-2">
-						{/* Left Side - Image (from original) */}
+						{/* Left Side - Image */}
 						<div className="hidden md:flex bg-gradient-to-br from-momma-brown to-momma-orange items-center justify-center p-8">
 							<div className="text-center">
 								<img
@@ -112,7 +112,6 @@ function Login() {
 							</div>
 
 							<form onSubmit={handleLogin} className="space-y-5">
-								{/* Email/Phone Field */}
 								<div>
 									<label className="block text-gray-700 font-medium mb-1 text-sm">
 										Email or Phone Number
@@ -135,7 +134,6 @@ function Login() {
 									</div>
 								</div>
 
-								{/* Password Field */}
 								<div>
 									<label className="block text-gray-700 font-medium mb-1 text-sm">
 										Password
@@ -175,7 +173,6 @@ function Login() {
 									</div>
 								</div>
 
-								{/* Forgot Password Link */}
 								<div className="text-right">
 									<Link
 										to="/forgot-password"
@@ -185,7 +182,6 @@ function Login() {
 									</Link>
 								</div>
 
-								{/* Error Message */}
 								{error && (
 									<div className="bg-red-50 border border-red-200 rounded-lg p-2">
 										<p className="text-red-600 text-sm">
@@ -194,7 +190,6 @@ function Login() {
 									</div>
 								)}
 
-								{/* Login Button */}
 								<button
 									type="submit"
 									disabled={loading}
@@ -210,7 +205,6 @@ function Login() {
 									)}
 								</button>
 
-								{/* Sign Up Link */}
 								<p className="text-center text-gray-600 text-sm">
 									Don't have an account?{" "}
 									<Link

@@ -10,6 +10,7 @@ import {
 	FiUserPlus,
 } from "react-icons/fi";
 import momma from "../../assets/mommanut.png";
+import { authAPI } from "../../lib/config/api";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -72,40 +73,31 @@ function Signup() {
 		}
 
 		try {
-			const response = await fetch(`${API_URL}/signup`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					name: formData.name,
-					email: formData.email,
-					phone: formData.phone,
-					password: formData.password,
-					confirm_password: formData.confirm_password,
-					role: "user",
-				}),
+			const response = await authAPI.register({
+				name: formData.name,
+				email: formData.email,
+				phone: formData.phone,
+				password: formData.password,
+				confirm_password: formData.confirm_password,
+				role: "user",
 			});
 
-			const data = await response.json();
-
-			if (!response.ok) {
-				setError(data.error || "Error signing up");
-				setLoading(false);
-				return;
-			}
+			const data = response.data;
 
 			localStorage.setItem("access_token", data.create_token);
 			localStorage.setItem("user", JSON.stringify(data.user));
 			setToken(data.create_token);
 
-			// Alert from original
 			alert(
 				`Welcome ${data.user.name}, your account has been created successfully.`,
 			);
-
 			navigate("/login");
 		} catch (error) {
 			console.error("Signup error:", error);
-			setError("Network error. Please try again.");
+			const errorMsg =
+				error.response?.data?.error ||
+				"Network error. Please try again.";
+			setError(errorMsg);
 		} finally {
 			setLoading(false);
 		}

@@ -19,24 +19,18 @@ function ForgotPassword() {
 		setError("");
 
 		try {
-			const response = await fetch(`${API_URL}/forgot-password`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email }),
-			});
+			const response = await authAPI.forgotPassword(email);
+			const data = response.data;
 
-			const data = await response.json();
-
-			if (!response.ok) {
-				setError(data.error || "Something went wrong");
-			} else {
-				setMessage(
-					data.message || "Password reset link sent to your email!",
-				);
-				setEmail(""); // Clear email on success
-			}
+			setMessage(
+				data.message || "Password reset link sent to your email!",
+			);
+			setEmail(""); // Clear email on success
 		} catch (err) {
-			setError("Network error. Please try again.");
+			console.error("Forgot password error:", err);
+			const errorMsg =
+				err.response?.data?.error || "Network error. Please try again.";
+			setError(errorMsg);
 		} finally {
 			setLoading(false);
 		}

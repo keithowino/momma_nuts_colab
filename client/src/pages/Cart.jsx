@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FiTrash2, FiPlus, FiMinus, FiShoppingCart } from "react-icons/fi";
+import { cartAPI, orderAPI } from "../lib/config/api";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -19,15 +20,21 @@ const Cart = () => {
 	const fetchCart = async () => {
 		setLoading(true);
 		try {
-			const response = await axios.get(`${API_URL}/cart`, {
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-				},
-			});
-			setCartItems(response.data);
+			// const response = await axios.get(`${API_URL}/cart`, {
+			// 	headers: {
+			// 		Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+			// 	},
+			// });
+			const response = await cartAPI.getCart();
+			// Handle both { items: [...] } and plain array responses
+			const items = Array.isArray(response.data)
+				? response.data
+				: (response.data.items ?? response.data.cart_items ?? []);
+			setCartItems(items);
 			setError(null);
 		} catch (err) {
 			setError(err.response?.data?.message || "Failed to fetch cart");
+			setCartItems([]); // prevent map crash on error
 		} finally {
 			setLoading(false);
 		}
@@ -35,15 +42,17 @@ const Cart = () => {
 
 	const updateQuantity = async (productId, change) => {
 		try {
-			await axios.post(
-				`${API_URL}/cart`,
-				{ product_id: productId, quantity: change },
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-					},
-				},
-			);
+			// await axios.post(
+			// 	`${API_URL}/cart`,
+			// 	{ product_id: productId, quantity: change },
+			// 	{
+			// 		headers: {
+			// 			Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+			// 		},
+			// 	},
+			// );
+
+			await cartAPI.updateQuantity(productId, change);
 			await fetchCart(); // Refresh after update
 		} catch (err) {
 			alert(err.response?.data?.error || "Failed to update quantity");
@@ -52,11 +61,12 @@ const Cart = () => {
 
 	const removeItem = async (cartId) => {
 		try {
-			await axios.delete(`${API_URL}/cart/${cartId}`, {
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-				},
-			});
+			// await axios.delete(`${API_URL}/cart/${cartId}`, {
+			// 	headers: {
+			// 		Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+			// 	},
+			// });
+			await cartAPI.removeItem(cartId);
 			setCartItems(cartItems.filter((item) => item.id !== cartId));
 		} catch (err) {
 			console.error(
@@ -70,20 +80,25 @@ const Cart = () => {
 	const handleCheckout = async () => {
 		setCheckoutLoading(true);
 		try {
-			const response = await axios.post(
-				`${API_URL}/checkout`,
-				{},
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-					},
-				},
-			);
+			// const response = await axios.post(
+			// 	`${API_URL}/checkout`,
+			// 	{},
+			// 	{
+			// 		headers: {
+			// 			Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+			// 		},
+			// 	},
+			// );
+
+			const response = await orderAPI.checkout();
+
+			console.log("Checkout response:", response.data); // Debug log
+
 			alert("Checkout successful! Proceed to payment.");
 			navigate("/mpesa", {
 				state: {
 					orderId: response.data.order_id,
-					amount: response.data.total_amount,
+					amount: response.data.total_price, // ← FIX: use total_price
 				},
 			});
 		} catch (err) {

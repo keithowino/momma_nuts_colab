@@ -9,8 +9,7 @@ import {
 	FiTrash2,
 	FiArrowLeft,
 } from "react-icons/fi";
-
-const API_URL = "http://127.0.0.1:5000";
+import { userAPI } from "../lib/config/api";
 
 function Profile() {
 	const navigate = useNavigate();
@@ -51,7 +50,6 @@ function Profile() {
 			return;
 		}
 
-		const token = localStorage.getItem("access_token");
 		const requestBody = {
 			name: newName,
 			email: newEmail,
@@ -69,20 +67,7 @@ function Profile() {
 		}
 
 		try {
-			const response = await fetch(`${API_URL}/users`, {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify(requestBody),
-			});
-
-			const data = await response.json();
-
-			if (!response.ok) {
-				throw new Error(data.error || "Failed to update profile");
-			}
+			await userAPI.updateProfile(requestBody);
 
 			// Update localStorage with new user data
 			localStorage.setItem(
@@ -96,12 +81,8 @@ function Profile() {
 			);
 
 			setMessage("Profile updated successfully!");
-
-			// Clear password fields
 			setCurrentPassword("");
 			setNewPassword("");
-
-			// Update user state
 			setUser({
 				...user,
 				name: newName,
@@ -109,12 +90,15 @@ function Profile() {
 				phone: newPhone,
 			});
 
-			// Refresh after 1 second
 			setTimeout(() => {
 				window.location.reload();
 			}, 1000);
 		} catch (err) {
-			setError(err.message || "Something went wrong. Please try again.");
+			console.error("Update error:", err);
+			setError(
+				err.response?.data?.error ||
+					"Something went wrong. Please try again.",
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -130,29 +114,19 @@ function Profile() {
 		}
 
 		setLoading(true);
-		const token = localStorage.getItem("access_token");
-
 		try {
-			const response = await fetch(`${API_URL}/delete`, {
-				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-			});
-
-			if (!response.ok) {
-				throw new Error("Failed to delete account");
-			}
-
+			await userAPI.deleteAccount();
 			alert("Account deleted successfully!");
 			localStorage.removeItem("user");
 			localStorage.removeItem("access_token");
 			localStorage.removeItem("refresh_token");
 			navigate("/login");
 		} catch (error) {
-			console.error("Delete error:", error.message);
-			alert(error.message || "Something went wrong. Please try again.");
+			console.error("Delete error:", error);
+			alert(
+				error.response?.data?.error ||
+					"Something went wrong. Please try again.",
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -160,7 +134,6 @@ function Profile() {
 
 	return (
 		<div className="max-w-4xl mx-auto px-4 py-8">
-			{/* Header with back button */}
 			<div className="flex items-center gap-4 mb-8">
 				<button
 					onClick={() => navigate(-1)}
@@ -175,7 +148,6 @@ function Profile() {
 			</div>
 
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-				{/* Profile Form */}
 				<div className="lg:col-span-2">
 					<div className="bg-white rounded-2xl shadow-lg p-6">
 						<h2 className="text-xl font-semibold text-momma-brown mb-6">
@@ -183,7 +155,6 @@ function Profile() {
 						</h2>
 
 						<form onSubmit={handleUpdate} className="space-y-5">
-							{/* Name Field */}
 							<div>
 								<label className="block text-gray-700 font-medium mb-1 text-sm">
 									Full Name
@@ -206,7 +177,6 @@ function Profile() {
 								</div>
 							</div>
 
-							{/* Email Field */}
 							<div>
 								<label className="block text-gray-700 font-medium mb-1 text-sm">
 									Email Address
@@ -229,7 +199,6 @@ function Profile() {
 								</div>
 							</div>
 
-							{/* Phone Field */}
 							<div>
 								<label className="block text-gray-700 font-medium mb-1 text-sm">
 									Phone Number
@@ -252,14 +221,12 @@ function Profile() {
 								</div>
 							</div>
 
-							{/* Divider */}
 							<div className="border-t border-gray-200 my-6"></div>
 
 							<h3 className="text-lg font-semibold text-momma-brown mb-4">
 								Change Password
 							</h3>
 
-							{/* Current Password */}
 							<div>
 								<label className="block text-gray-700 font-medium mb-1 text-sm">
 									Current Password
@@ -281,7 +248,6 @@ function Profile() {
 								</div>
 							</div>
 
-							{/* New Password */}
 							<div>
 								<label className="block text-gray-700 font-medium mb-1 text-sm">
 									New Password (optional)
@@ -308,7 +274,6 @@ function Profile() {
 								</p>
 							</div>
 
-							{/* Success/Error Messages */}
 							{message && (
 								<div className="bg-green-50 border border-green-200 rounded-lg p-3">
 									<p className="text-green-600 text-sm">
@@ -325,7 +290,6 @@ function Profile() {
 								</div>
 							)}
 
-							{/* Update Button */}
 							<button
 								type="submit"
 								disabled={loading}
@@ -344,7 +308,6 @@ function Profile() {
 					</div>
 				</div>
 
-				{/* Danger Zone */}
 				<div className="lg:col-span-1">
 					<div className="bg-red-50 rounded-2xl border border-red-200 p-6 sticky top-24">
 						<h3 className="text-lg font-semibold text-red-700 mb-3">

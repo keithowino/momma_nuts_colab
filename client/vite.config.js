@@ -7,8 +7,15 @@ export default defineConfig(() => {
 		server: {
 			port: 3000,
 			host: "0.0.0.0",
+			proxy: {
+				"/api": {
+					target: process.env.VITE_API_URL || "http://127.0.0.1:3000",
+					changeOrigin: true,
+				},
+			},
 		},
 		build: {
+			outDir: "dist",
 			// Increase chunk size warning limit
 			chunkSizeWarningLimit: 1000,
 			rollupOptions: {

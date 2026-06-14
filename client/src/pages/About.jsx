@@ -13,9 +13,7 @@ import {
 	FiStar,
 	FiCheck,
 } from "react-icons/fi";
-import { MdOutlineNaturePeople, MdOutlineLocalShipping } from "react-icons/md";
-
-const API_URL = "http://127.0.0.1:5000";
+import { productAPI } from "../lib/config/api";
 
 // --- Animated counter hook ---
 const useCountUp = (end, duration = 1500) => {
@@ -94,16 +92,27 @@ const FAQItem = ({ question, answer }) => {
 
 const About = () => {
 	const [productCount, setProductCount] = useState(null);
+	const [loading, setLoading] = useState(true);
 
-	// Fetch real product count from your API
+	// Fetch real product count from your API using centralized API
 	useEffect(() => {
-		fetch(`${API_URL}/products`)
-			.then((r) => r.json())
-			.then((data) => {
-				if (Array.isArray(data)) setProductCount(data.length);
-			})
-			.catch(() => setProductCount(null));
+		fetchProductCount();
 	}, []);
+
+	const fetchProductCount = async () => {
+		try {
+			const response = await productAPI.getAll();
+			const products = response.data;
+			if (Array.isArray(products)) {
+				setProductCount(products.length);
+			}
+		} catch (error) {
+			console.error("Error fetching product count:", error);
+			setProductCount(null);
+		} finally {
+			setLoading(false);
+		}
+	};
 
 	const values = [
 		{
@@ -220,7 +229,7 @@ const About = () => {
 						label="Happy Customers"
 					/>
 					<AnimatedStat
-						end={productCount ?? 20}
+						end={productCount ?? (loading ? 0 : 20)}
 						suffix="+"
 						label="Products Available"
 					/>

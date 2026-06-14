@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
 	FiShoppingCart,
@@ -14,13 +14,10 @@ import {
 	FiClock,
 	FiGift,
 	FiMessageCircle,
-	FiPlay,
-	FiPause,
 } from "react-icons/fi";
 import { MdOutlineCookie, MdOutlineLocalOffer } from "react-icons/md";
 import { useCommon } from "../lib/context/CommonContext";
-
-const API_URL = "http://127.0.0.1:5000";
+import { productAPI, cartAPI } from "../lib/config/api";
 
 const Home = () => {
 	const { heroCarousel, quizQuestions } = useCommon();
@@ -55,8 +52,8 @@ const Home = () => {
 
 	const fetchProducts = async () => {
 		try {
-			const response = await fetch(`${API_URL}/products`);
-			const data = await response.json();
+			const response = await productAPI.getAll();
+			const data = response.data;
 			setFeaturedProducts(Array.isArray(data) ? data.slice(0, 4) : []);
 		} catch (error) {
 			console.error("Error fetching products:", error);
@@ -101,7 +98,7 @@ const Home = () => {
 	// Countdown timer for limited offer
 	const startCountdown = () => {
 		const targetDate = new Date();
-		targetDate.setDate(targetDate.getDate() + 7); // 7 days from now
+		targetDate.setDate(targetDate.getDate() + 7);
 
 		const interval = setInterval(() => {
 			const now = new Date();
@@ -135,7 +132,7 @@ const Home = () => {
 		);
 	};
 
-	// Add to cart function
+	// Add to cart function using centralized API
 	const handleAddToCart = async (productId, productName) => {
 		const token = localStorage.getItem("access_token");
 		if (!token) {
@@ -146,28 +143,16 @@ const Home = () => {
 
 		setAddingToCart(productId);
 		try {
-			const response = await fetch(`${API_URL}/cart`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ product_id: productId, quantity: 1 }),
-			});
+			await cartAPI.addItem(productId, 1);
 
-			if (response.ok) {
-				// Show success feedback without alert
-				const event = new CustomEvent("cartUpdated", {
-					detail: { productId, productName },
-				});
-				window.dispatchEvent(event);
-			} else {
-				const error = await response.json();
-				alert(error.error || "Failed to add to cart");
-			}
+			// Show success feedback
+			const event = new CustomEvent("cartUpdated", {
+				detail: { productId, productName },
+			});
+			window.dispatchEvent(event);
 		} catch (error) {
 			console.error("Error adding to cart:", error);
-			alert("Network error. Please try again.");
+			alert(error.response?.data?.error || "Failed to add to cart");
 		} finally {
 			setTimeout(() => setAddingToCart(null), 1000);
 		}
@@ -179,7 +164,6 @@ const Home = () => {
 		if (!newsletterEmail) return;
 
 		setNewsletterStatus("sending");
-		// Simulate API call - replace with actual endpoint
 		setTimeout(() => {
 			setNewsletterStatus("success");
 			setNewsletterEmail("");
@@ -194,7 +178,6 @@ const Home = () => {
 		setChatMessages([...chatMessages, { type: "user", text: chatMessage }]);
 		setChatMessage("");
 
-		// Simulate bot response
 		setTimeout(() => {
 			const botResponses = [
 				"Thanks for your message! Our team will get back to you shortly.",
@@ -218,13 +201,10 @@ const Home = () => {
 		if (quizStep < quizQuestions.length - 1) {
 			setQuizStep(quizStep + 1);
 		} else {
-			// Store answers for backend recommendation engine
 			localStorage.setItem("quizAnswers", JSON.stringify(newAnswers));
 			setShowQuiz(false);
 			setQuizStep(0);
 			setQuizAnswers({});
-
-			// Navigate to recommendations
 			navigate("/user-products?recommended=true");
 		}
 	};

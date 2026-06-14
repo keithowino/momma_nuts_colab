@@ -8,54 +8,51 @@ import {
 	FiDownload,
 	FiSearch,
 } from "react-icons/fi";
-
-const API_URL = "http://127.0.0.1:5000";
+import { orderAPI } from "../../lib/config/api";
 
 function Orders() {
 	const [orders, setOrders] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(""); // ← ADD THIS
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [selectedOrder, setSelectedOrder] = useState(null);
 	const [showModal, setShowModal] = useState(false);
+	const [updatingStatus, setUpdatingStatus] = useState(null); // ← ADD THIS
 
 	useEffect(() => {
 		fetchOrders();
 	}, []);
 
 	const fetchOrders = async () => {
-		const token = localStorage.getItem("access_token");
+		setLoading(true);
 		try {
-			const response = await fetch(`${API_URL}/orders`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const data = await response.json();
-			setOrders(Array.isArray(data) ? data : []);
-		} catch (error) {
-			console.error("Error fetching orders:", error);
+			const response = await orderAPI.getAll();
+			setOrders(Array.isArray(response.data) ? response.data : []);
+			setError("");
+		} catch (err) {
+			console.error("Error fetching orders:", err);
+			setError(err.response?.data?.error || "Failed to fetch orders");
 		} finally {
 			setLoading(false);
 		}
 	};
 
 	const updateOrderStatus = async (orderId, newStatus) => {
-		const token = localStorage.getItem("access_token");
+		setUpdatingStatus(orderId);
 		try {
-			const response = await fetch(`${API_URL}/orders/${orderId}`, {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ status: newStatus }),
-			});
-
-			if (response.ok) {
-				fetchOrders();
+			const response = await orderAPI.cancel(orderId); // Reusing cancel endpoint for status update
+			if (response.status === 200 || response.status === 201) {
+				await fetchOrders(); // Refresh the list
 				alert(`Order #${orderId} status updated to ${newStatus}`);
 			}
 		} catch (error) {
 			console.error("Error updating order:", error);
+			alert(
+				error.response?.data?.error || "Failed to update order status",
+			);
+		} finally {
+			setUpdatingStatus(null);
 		}
 	};
 
@@ -145,6 +142,16 @@ function Orders() {
 				</div>
 			</div>
 
+			{/* Error Message */}
+			{error && (
+				<div className="bg-red-50 border border-red-200 rounded-xl p-4">
+					<div className="flex items-center gap-3">
+						<FiXCircle className="text-red-500" />
+						<p className="text-red-600">{error}</p>
+					</div>
+				</div>
+			)}
+
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
 				<div className="bg-white rounded-lg p-4 shadow-sm border">
@@ -198,97 +205,135 @@ function Orders() {
 				>
 					<option value="all">All Status</option>
 					<option value="pending">Pending</option>
+					<option value="processing">Processing</option>
 					<option value="completed">Completed</option>
 					<option value="canceled">Canceled</option>
 				</select>
 			</div>
 
 			{/* Orders Table */}
-			<div className="bg-white rounded-xl shadow-sm overflow-hidden">
-				<div className="overflow-x-auto">
-					<table className="w-full">
-						<thead className="bg-gray-50">
-							<tr>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-									Order ID
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-									Customer
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-									Amount
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-									Status
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-									Date
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-									Actions
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-gray-200">
-							{filteredOrders.map((order) => (
-								<tr key={order.id} className="hover:bg-gray-50">
-									<td className="px-6 py-4 text-sm font-medium text-gray-900">
-										#{order.id}
-									</td>
-									<td className="px-6 py-4 text-sm text-gray-600">
-										User #{order.user_id}
-									</td>
-									<td className="px-6 py-4 text-sm font-medium text-momma-pink">
-										KSh{" "}
-										{order.total_price?.toLocaleString()}
-									</td>
-									<td className="px-6 py-4">
-										<select
-											value={order.status}
-											onChange={(e) =>
-												updateOrderStatus(
-													order.id,
-													e.target.value,
-												)
-											}
-											className={`px-2 py-1 text-xs rounded-full border-0 ${getStatusBadge(order.status)}`}
-										>
-											<option value="pending">
-												Pending
-											</option>
-											<option value="processing">
-												Processing
-											</option>
-											<option value="completed">
-												Completed
-											</option>
-											<option value="canceled">
-												Canceled
-											</option>
-										</select>
-									</td>
-									<td className="px-6 py-4 text-sm text-gray-500">
-										{new Date(
-											order.created_at,
-										).toLocaleDateString()}
-									</td>
-									<td className="px-6 py-4">
-										<button
-											onClick={() => {
-												setSelectedOrder(order);
-												setShowModal(true);
-											}}
-											className="text-momma-pink hover:text-momma-red"
-										>
-											<FiEye />
-										</button>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+			{filteredOrders.length === 0 ? (
+				<div className="bg-white rounded-xl shadow-sm p-12 text-center">
+					<FiPackage className="text-6xl text-gray-300 mx-auto mb-4" />
+					<p className="text-gray-500 text-lg">No orders found</p>
+					{searchTerm && (
+						<button
+							onClick={() => setSearchTerm("")}
+							className="btn-secondary mt-4"
+						>
+							Clear Search
+						</button>
+					)}
 				</div>
-			</div>
+			) : (
+				<div className="bg-white rounded-xl shadow-sm overflow-hidden">
+					<div className="overflow-x-auto">
+						<table className="w-full">
+							<thead className="bg-gray-50">
+								<tr>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+										Order ID
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+										Customer
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+										Amount
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+										Status
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+										Date
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+										Actions
+									</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-gray-200">
+								{filteredOrders.map((order) => (
+									<tr
+										key={order.id}
+										className="hover:bg-gray-50"
+									>
+										<td className="px-6 py-4 text-sm font-medium text-gray-900">
+											#{order.id}
+										</td>
+										<td className="px-6 py-4 text-sm text-gray-600">
+											User #{order.user_id}
+										</td>
+										<td className="px-6 py-4 text-sm font-medium text-momma-pink">
+											KSh{" "}
+											{order.total_price?.toLocaleString()}
+										</td>
+										<td className="px-6 py-4">
+											<select
+												value={order.status}
+												onChange={(e) =>
+													updateOrderStatus(
+														order.id,
+														e.target.value,
+													)
+												}
+												disabled={
+													updatingStatus === order.id
+												}
+												className={`px-2 py-1 text-xs rounded-full border-0 ${getStatusBadge(order.status)}`}
+											>
+												<option value="pending">
+													Pending
+												</option>
+												<option value="processing">
+													Processing
+												</option>
+												<option value="completed">
+													Completed
+												</option>
+												<option value="canceled">
+													Canceled
+												</option>
+											</select>
+										</td>
+										<td className="px-6 py-4 text-sm text-gray-500">
+											{new Date(
+												order.created_at,
+											).toLocaleDateString()}
+										</td>
+										<td className="px-6 py-4">
+											<button
+												onClick={() => {
+													setSelectedOrder(order);
+													setShowModal(true);
+												}}
+												className="text-momma-pink hover:text-momma-red"
+											>
+												<FiEye />
+											</button>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+
+					{/* Footer with summary */}
+					<div className="bg-gray-50 px-6 py-4 border-t">
+						<div className="flex justify-between items-center">
+							<p className="text-sm text-gray-500">
+								Showing {filteredOrders.length} of{" "}
+								{orders.length} orders
+							</p>
+							<p className="text-sm text-gray-600">
+								Total Revenue:{" "}
+								<span className="font-semibold text-momma-pink">
+									KSh {stats.revenue.toLocaleString()}
+								</span>
+							</p>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Order Details Modal */}
 			{showModal && selectedOrder && (

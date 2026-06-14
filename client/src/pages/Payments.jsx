@@ -9,8 +9,7 @@ import {
 	FiRefreshCw,
 	FiAlertCircle,
 } from "react-icons/fi";
-
-const API_URL = "http://127.0.0.1:5000";
+import { paymentAPI } from "../lib/config/api";
 
 const Payments = () => {
 	const [payments, setPayments] = useState([]);
@@ -37,18 +36,10 @@ const Payments = () => {
 				return;
 			}
 
-			const response = await fetch(`${API_URL}/payments`, {
-				headers: {
-					Authorization: `Bearer ${token}`,
-					"Content-Type": "application/json",
-				},
-			});
+			// paymentAPI.getAll() returns axios response - data is in response.data
+			const response = await paymentAPI.getAll();
+			const data = response.data;
 
-			if (!response.ok) {
-				throw new Error("Failed to fetch payments");
-			}
-
-			const data = await response.json();
 			setPayments(Array.isArray(data) ? data : []);
 
 			// Calculate stats
@@ -69,9 +60,14 @@ const Payments = () => {
 				failed,
 				totalAmount,
 			});
+			setError("");
 		} catch (err) {
 			console.error("Error fetching payments:", err);
-			setError(err.message || "Failed to load payments");
+			setError(
+				err.response?.data?.error ||
+					err.message ||
+					"Failed to load payments",
+			);
 		} finally {
 			setLoading(false);
 		}

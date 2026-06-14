@@ -64,7 +64,6 @@ class Products(db.Model, SerializerMixin):
     order_items = db.relationship('OrderItems', back_populates='product', lazy=True)
     cart_items = db.relationship('Cart', back_populates='product', lazy=True, cascade="all, delete-orphan")
     comments = db.relationship('Comments', back_populates='product', cascade="all, delete")
-    # likes = db.relationship("Likes", back_populates="user", cascade="all, delete")
     likes = db.relationship("Likes", back_populates="product", cascade="all, delete")
 
     def to_dict(self, include_comments=True):

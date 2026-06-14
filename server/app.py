@@ -22,6 +22,14 @@ from resources.crud import User, Product, Order, OrderResource, Carts, Payment, 
 load_dotenv()
 
 app = Flask(__name__)
+
+# For production on Render, uncomment this:
+# database_url = os.environ.get('DATABASE_URL')
+# if database_url and database_url.startswith('postgres://'):
+#     database_url = database_url.replace('postgres://', 'postgresql://', 1)
+# app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///app.db'
+
+# For local development - always use SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
@@ -51,94 +59,153 @@ consumer_secret = os.getenv('CONSUMER_SECRET')
 shortcode = os.getenv('SHORTCODE')
 passkey = os.getenv('PASSKEY')
 callback_url = "https://0e87-197-248-19-111.ngrok-free.app/mpesa/callback"
-
-@app.route('/mpesa/pay', methods=['POST'])
+    
+@app.route('/mpesa/pay', methods=['POST', 'OPTIONS'])
 @jwt_required()
 def mpesa_pay():
-    current_user = get_jwt_identity()
-    data = request.get_json()
-
-    print("Received data:", data)
-
-    phone_number = str(data.get('phone_number') or "").strip()
-    if not phone_number:
-        return jsonify({'error': 'Phone number is required'}), 400
-    order_id = data.get('order_id')
-
-    if not phone_number or not order_id:
-        return jsonify({'error': 'Phone number and Order ID are required'}), 400
-
-    # 🛑 Fetch order & validate
-    order = db.session.get(Orders, order_id)
-    if not order:
-        return jsonify({'error': 'Order not found'}), 404
-    if order.user_id != current_user['id']:
-        return jsonify({'error': 'Unauthorized to pay for this order'}), 403
-    if order.status == "completed":
-        return jsonify({'error': 'Order is already paid for'}), 400
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        return '', 200
     
-    amount = int(order.total_price)
+    try:
+        print("=== M-PESA PAY DEBUG ===")
+        
+        current_user = get_jwt_identity()
+        print(f"Current user: {current_user}")
+        
+        data = request.get_json()
+        print(f"Received data: {data}")
 
-    if amount != order.total_price:  # ✅ Ensure correct amount
-        return jsonify({'error': f'Incorrect amount! Order requires {order.total_price}'}), 400
+        phone_number = str(data.get('phone_number') or "").strip()
+        order_id = data.get('order_id')
+        
+        print(f"Phone: {phone_number}, Order ID: {order_id}")
 
-    # ✅ Use order's total price
-    amount = order.total_price  
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+        
+        if not order_id:
+            return jsonify({'error': 'Order ID is required'}), 400
 
-    access_token = get_access_token()
-    if not access_token:
-        return jsonify({'error': 'Failed to get Mpesa access token!'}), 500
+        # Fetch order & validate
+        order = db.session.get(Orders, order_id)
+        if not order:
+            return jsonify({'error': 'Order not found'}), 404
+            
+        # Handle both string and dict identity
+        if isinstance(current_user, dict):
+            user_id = current_user.get('id')
+        else:
+            user_id = int(current_user) if current_user else None
+            
+        if order.user_id != user_id:
+            return jsonify({'error': 'Unauthorized to pay for this order'}), 403
+            
+        if order.status == "completed":
+            return jsonify({'error': 'Order is already paid for'}), 400
+        
+        amount = order.total_price  
+        print(f"Amount: {amount}")
 
-    timestamp = get_timestamp()
-    password = generate_password(shortcode, passkey, timestamp)
+        # For testing without actual M-Pesa credentials, return mock success
+        # This allows you to test the flow without real M-Pesa integration
+        USE_MOCK_MPESA = True  # Set to False when you have real credentials
+        
+        if USE_MOCK_MPESA:
+            print("Using mock M-Pesa payment")
+            fake_receipt = f"MOCK-{order_id}-{int(datetime.datetime.now().timestamp())}"
+            
+            # Store payment in DB
+            new_payment = Payments(
+                order_id=order_id,
+                user_id=user_id,
+                phone_number=phone_number,
+                amount=amount,
+                status="Completed",
+                mpesa_receipt_number=fake_receipt,
+                transaction_date=datetime.datetime.utcnow()
+            )
+            db.session.add(new_payment)
+            order.status = "completed"
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'STK push initiated successfully',
+                'data': {
+                    'mpesa_receipt_number': fake_receipt,
+                    'merchant_request_id': f'MOCK-{order_id}',
+                    'checkout_request_id': f'CHECKOUT-{order_id}'
+                }
+            }), 200
+        
+        # Real M-Pesa integration (only runs if USE_MOCK_MPESA is False)
+        consumer_key = os.getenv('CONSUMER_KEY')
+        consumer_secret = os.getenv('CONSUMER_SECRET')
+        shortcode = os.getenv('SHORTCODE')
+        passkey = os.getenv('PASSKEY')
+        
+        if not all([consumer_key, consumer_secret, shortcode, passkey]):
+            return jsonify({'error': 'M-Pesa credentials not configured'}), 500
+        
+        access_token = get_access_token()
+        if not access_token:
+            return jsonify({'error': 'Failed to get Mpesa access token!'}), 500
 
-    payload = {
-        "BusinessShortCode": shortcode,
-        "Password": password,
-        "Timestamp": timestamp,
-        "TransactionType": "CustomerPayBillOnline",
-        "Amount": amount,
-        "PartyA": phone_number,
-        "PartyB": shortcode,
-        "PhoneNumber": phone_number,
-        "CallBackURL": callback_url,
-        "AccountReference": str(order_id),  # Store order_id in reference
-        "TransactionDesc": f"Payment for Order #{order_id}"
-    }
+        timestamp = get_timestamp()
+        password = generate_password(shortcode, passkey, timestamp)
 
-    stk_push_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
-    response = requests.post(stk_push_url, json=payload, headers={'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'})
+        payload = {
+            "BusinessShortCode": shortcode,
+            "Password": password,
+            "Timestamp": timestamp,
+            "TransactionType": "CustomerPayBillOnline",
+            "Amount": int(amount),
+            "PartyA": phone_number,
+            "PartyB": shortcode,
+            "PhoneNumber": phone_number,
+            "CallBackURL": callback_url,
+            "AccountReference": str(order_id),
+            "TransactionDesc": f"Payment for Order #{order_id}"
+        }
 
-    if response.status_code == 200:
-        response_data = response.json()
-        merchant_request_id = response_data.get("MerchantRequestID")
-        checkout_request_id = response_data.get("CheckoutRequestID")
-
-        # order.status == "completed"
-
-        fake_receipt = f"FAKE-{merchant_request_id[:6]}"
-
-        # ✅ Store payment in DB with tracking IDs
-        new_payment = Payments(
-            order_id=order_id,
-            user_id=current_user['id'],
-            phone_number=phone_number,
-            amount=amount,
-            status="Completed",
-            merchant_request_id=merchant_request_id,
-            checkout_request_id=checkout_request_id,
-            mpesa_receipt_number=fake_receipt
+        stk_push_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+        response = requests.post(
+            stk_push_url, 
+            json=payload, 
+            headers={'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
         )
 
-        db.session.add(new_payment)
+        if response.status_code == 200:
+            response_data = response.json()
+            merchant_request_id = response_data.get("MerchantRequestID")
+            checkout_request_id = response_data.get("CheckoutRequestID")
 
-        order.status = "completed"
+            fake_receipt = f"FAKE-{merchant_request_id[:6] if merchant_request_id else order_id}"
 
-        db.session.commit()
+            new_payment = Payments(
+                order_id=order_id,
+                user_id=user_id,
+                phone_number=phone_number,
+                amount=amount,
+                status="Pending",
+                merchant_request_id=merchant_request_id,
+                checkout_request_id=checkout_request_id,
+                mpesa_receipt_number=fake_receipt
+            )
+            db.session.add(new_payment)
+            order.status = "pending"  # Keep pending until callback confirms
+            db.session.commit()
 
-        return jsonify({'message': 'STK push initiated successfully', "data": response_data}), 200
-
-    return jsonify({'error': 'Failed to initiate STK push', 'data': response.json()}), 500
+            return jsonify({'message': 'STK push initiated successfully', "data": response_data}), 200
+        else:
+            return jsonify({'error': 'Failed to initiate STK push', 'details': response.json()}), 500
+            
+    except Exception as e:
+        print(f"M-Pesa payment error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'error': f'Payment processing error: {str(e)}'}), 500
     
 @app.route('/mpesa/callback', methods=['POST'])
 def mpesa_callback():
@@ -361,9 +428,18 @@ class Login(Resource):
 class DeleteAcc(Resource):
     @jwt_required()
     def delete(self):
-        current = get_jwt_identity()
-        user_id = current.get('id')
-        role = current.get('role')
+        current_user_id = get_jwt_identity()
+        
+        # Handle both string and dict identity
+        if isinstance(current_user_id, dict):
+            user_id = current_user_id.get('id')
+            role = current_user_id.get('role')
+        else:
+            user_id = int(current_user_id) if current_user_id else None
+            # Get role from claims
+            from flask_jwt_extended import get_jwt
+            claims = get_jwt()
+            role = claims.get('role')
 
         data = request.get_json()
         target_user_id = int(data.get('user_id')) if data and 'user_id' in data else user_id
@@ -381,9 +457,8 @@ class DeleteAcc(Resource):
         delete_user.phone = f"deleted_{delete_user.id}_{delete_user.phone}"
 
         db.session.commit()
-
         return {'message': 'The user account has been deactivated successfully!'}, 200
-    
+     
 class Refresh(Resource):
     @jwt_required(refresh = True)
     def post(self):

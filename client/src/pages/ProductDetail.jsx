@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
 import {
 	FiShoppingCart,
 	FiHeart,
@@ -11,8 +10,7 @@ import {
 	FiAlertCircle,
 } from "react-icons/fi";
 import CommentSection from "../components/common/comments/CommentSection";
-
-const API_URL = "http://127.0.0.1:5000";
+import { productAPI, cartAPI } from "../lib/config/api";
 
 const ProductDetail = () => {
 	const { id } = useParams();
@@ -40,18 +38,16 @@ const ProductDetail = () => {
 	const fetchProduct = async () => {
 		setLoading(true);
 		try {
-			// First try the single product endpoint
 			let productData = null;
 
 			try {
-				const response = await axios.get(`${API_URL}/products/${id}`);
+				const response = await productAPI.getById(id);
 				productData = response.data;
 			} catch (singleErr) {
 				console.log(
 					"Single product endpoint failed, fetching all products...",
 				);
-				// Fallback: get all products and find by ID
-				const allProducts = await axios.get(`${API_URL}/products`);
+				const allProducts = await productAPI.getAll();
 				const found = allProducts.data.find(
 					(p) => p.id === parseInt(id),
 				);
@@ -73,19 +69,10 @@ const ProductDetail = () => {
 	};
 
 	const fetchLikeStatus = async () => {
-		const token = localStorage.getItem("access_token");
-		if (!token) return;
-
 		try {
-			const response = await fetch(
-				`${API_URL}/products/${product.id}/likes`,
-				{
-					headers: { Authorization: `Bearer ${token}` },
-				},
-			);
-			const data = await response.json();
-			setLiked(data.liked || false);
-			setLikesCount(data.likes_count || 0);
+			const response = await productAPI.getLikes(product.id);
+			setLiked(response.data.liked || false);
+			setLikesCount(response.data.likes_count || 0);
 		} catch (error) {
 			console.error("Error fetching like status:", error);
 		}
@@ -101,23 +88,15 @@ const ProductDetail = () => {
 		if (isLiking) return;
 		setIsLiking(true);
 
-		const method = liked ? "DELETE" : "POST";
-
 		try {
-			const response = await fetch(
-				`${API_URL}/products/${product.id}/likes`,
-				{
-					method,
-					headers: {
-						Authorization: `Bearer ${token}`,
-						"Content-Type": "application/json",
-					},
-				},
-			);
-
-			if (response.ok) {
-				setLiked(!liked);
-				setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+			if (liked) {
+				await productAPI.unlike(product.id);
+				setLiked(false);
+				setLikesCount(likesCount - 1);
+			} else {
+				await productAPI.like(product.id);
+				setLiked(true);
+				setLikesCount(likesCount + 1);
 			}
 		} catch (error) {
 			console.error("Error toggling like:", error);
@@ -138,57 +117,12 @@ const ProductDetail = () => {
 				return;
 			}
 
-			// Verify token structure
-			const tokenParts = token.split(".");
-			if (tokenParts.length !== 3) {
-				console.error("Invalid token format");
-				localStorage.clear();
-				alert("Session expired. Please login again.");
-				navigate("/login");
-				return;
-			}
-
-			const payload = {
-				product_id: parseInt(product.id),
-				quantity: parseInt(quantity),
-			};
-
-			console.log("Sending to cart:", payload);
-
-			const response = await axios.post(`${API_URL}/cart`, payload, {
-				headers: {
-					Authorization: `Bearer ${token}`,
-					"Content-Type": "application/json",
-				},
-			});
-
-			console.log("Cart response:", response.data);
+			await cartAPI.addItem(parseInt(product.id), parseInt(quantity));
 			setAddedToCart(true);
 			setTimeout(() => setAddedToCart(false), 3000);
 		} catch (err) {
 			console.error("Cart error:", err.response?.data || err.message);
-
-			// Handle specific error cases
-			if (err.response?.status === 422) {
-				const errorMsg =
-					err.response?.data?.msg ||
-					"Invalid token. Please login again.";
-				alert(errorMsg);
-				if (
-					errorMsg.includes("signature") ||
-					errorMsg.includes("token")
-				) {
-					localStorage.clear();
-					alert("Session expired. Please login again.");
-					navigate("/login");
-				}
-			} else {
-				alert(
-					err.response?.data?.error ||
-						err.response?.data?.message ||
-						"Failed to add to cart",
-				);
-			}
+			alert(err.response?.data?.error || "Failed to add to cart");
 		} finally {
 			setAddingToCart(false);
 		}
@@ -254,17 +188,11 @@ const ProductDetail = () => {
 								className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
 							/>
 						) : (
-							<div className="text-center">
-								{/* <FiShoppingCart className="text-6xl text-gray-300 mx-auto mb-2" /> */}
-								<img
-									src="https://images.unsplash.com/photo-1599599810769-bcde5a160d32?w=400"
-									alt={product.name}
-									className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-								/>
-								<p className="text-gray-400 text-sm">
-									{product.name}
-								</p>
-							</div>
+							<img
+								src="https://images.unsplash.com/photo-1599599810769-bcde5a160d32?w=400"
+								alt={product.name}
+								className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+							/>
 						)}
 					</div>
 				</div>

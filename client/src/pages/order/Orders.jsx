@@ -11,8 +11,7 @@ import {
 	FiCheckCircle,
 	FiAlertCircle,
 } from "react-icons/fi";
-
-const API_URL = "http://127.0.0.1:5000";
+import { orderAPI } from "../../lib/config/api";
 
 const Orders = () => {
 	const [orders, setOrders] = useState([]);
@@ -38,25 +37,25 @@ const Orders = () => {
 		}
 
 		try {
-			const response = await fetch(`${API_URL}/orders`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
+			// orderAPI.getAll() returns axios response - data is in response.data
+			const response = await orderAPI.getAll();
+			const data = response.data;
 
-			if (!response.ok) throw new Error("Failed to fetch orders");
-
-			const data = await response.json();
 			setOrders(Array.isArray(data) ? data : []);
 			setError("");
 		} catch (err) {
 			console.error("Error fetching orders:", err);
-			setError(err.message || "Failed to load orders");
+			setError(
+				err.response?.data?.error ||
+					err.message ||
+					"Failed to load orders",
+			);
 		} finally {
 			setLoading(false);
 		}
 	};
 
 	const handleCancelOrder = async (orderId, orderStatus) => {
-		const token = localStorage.getItem("access_token");
 		const user = JSON.parse(localStorage.getItem("user") || "{}");
 
 		if (orderStatus === "completed" && user.role !== "admin") {
@@ -75,15 +74,7 @@ const Orders = () => {
 
 		setCancellingOrderId(orderId);
 		try {
-			const response = await fetch(`${API_URL}/orders/${orderId}`, {
-				method: "PATCH",
-				headers: {
-					Authorization: `Bearer ${token}`,
-					"Content-Type": "application/json",
-				},
-			});
-
-			if (!response.ok) throw new Error("Failed to cancel order");
+			await orderAPI.cancel(orderId);
 
 			// Update local state
 			setOrders((prevOrders) =>
@@ -96,7 +87,7 @@ const Orders = () => {
 			alert(`Order #${orderId} has been canceled.`);
 		} catch (err) {
 			console.error("Error canceling order:", err);
-			alert(err.message || "Failed to cancel order");
+			alert(err.response?.data?.error || "Failed to cancel order");
 		} finally {
 			setCancellingOrderId(null);
 		}

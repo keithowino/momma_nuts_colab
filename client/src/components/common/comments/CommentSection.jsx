@@ -9,6 +9,7 @@ import {
 	FiStar,
 } from "react-icons/fi";
 import { ReplyIcon } from "lucide-react";
+import { commentAPI } from "../../../lib/config/api";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -31,13 +32,9 @@ const CommentSection = ({ productId }) => {
 
 	const fetchComments = async () => {
 		try {
-			const response = await fetch(
-				`${API_URL}/comments/product/${productId}`,
-			);
-			if (response.ok) {
-				const data = await response.json();
-				setComments(Array.isArray(data) ? data : []);
-			}
+			const response = await commentAPI.getByProduct(productId);
+			// response.data is already parsed JSON
+			setComments(Array.isArray(response.data) ? response.data : []);
 		} catch (error) {
 			console.error("Error fetching comments:", error);
 		} finally {
@@ -57,29 +54,16 @@ const CommentSection = ({ productId }) => {
 
 		setSubmitting(true);
 		try {
-			const response = await fetch(`${API_URL}/comments`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					content: newComment,
-					product_id: productId,
-				}),
-			});
-
-			if (response.ok) {
-				const data = await response.json();
-				setComments([data, ...comments]);
-				setNewComment("");
-			} else {
-				const error = await response.json();
-				alert(error.error || "Failed to post comment");
-			}
+			const response = await commentAPI.create(newComment, productId);
+			// response.data is the new comment
+			setComments([response.data, ...comments]);
+			setNewComment("");
 		} catch (error) {
 			console.error("Error posting comment:", error);
-			alert("Network error. Please try again.");
+			const errorMsg =
+				error.response?.data?.error ||
+				"Network error. Please try again.";
+			alert(errorMsg);
 		} finally {
 			setSubmitting(false);
 		}
@@ -93,40 +77,35 @@ const CommentSection = ({ productId }) => {
 		if (!window.confirm("Are you sure you want to delete this?")) return;
 
 		const token = localStorage.getItem("access_token");
-		const url = isReply
-			? `${API_URL}/comments/${parentId}/replies/${commentId}`
-			: `${API_URL}/comments/${commentId}`;
+		if (!token) {
+			alert("Please login to delete");
+			return;
+		}
 
 		try {
-			const response = await fetch(url, {
-				method: "DELETE",
-				headers: { Authorization: `Bearer ${token}` },
-			});
-
-			if (response.ok) {
-				if (isReply) {
-					// Update replies in the specific comment
-					setComments((prevComments) =>
-						prevComments.map((comment) =>
-							comment.id === parentId
-								? {
-										...comment,
-										replies: comment.replies.filter(
-											(r) => r.id !== commentId,
-										),
-									}
-								: comment,
-						),
-					);
-				} else {
-					setComments(comments.filter((c) => c.id !== commentId));
-				}
+			if (isReply) {
+				await commentAPI.deleteReply(parentId, commentId);
+				// Update replies in the specific comment
+				setComments((prevComments) =>
+					prevComments.map((comment) =>
+						comment.id === parentId
+							? {
+									...comment,
+									replies: comment.replies.filter(
+										(r) => r.id !== commentId,
+									),
+								}
+							: comment,
+					),
+				);
 			} else {
-				alert("Failed to delete");
+				await commentAPI.delete(commentId);
+				setComments(comments.filter((c) => c.id !== commentId));
 			}
 		} catch (error) {
 			console.error("Error deleting:", error);
-			alert("Network error");
+			const errorMsg = error.response?.data?.error || "Failed to delete";
+			alert(errorMsg);
 		}
 	};
 
@@ -145,39 +124,26 @@ const CommentSection = ({ productId }) => {
 		}
 
 		try {
-			const response = await fetch(
-				`${API_URL}/comments/${commentId}/replies`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({ content: replyContent }),
-				},
-			);
+			const response = await commentAPI.addReply(commentId, replyContent);
+			const newReply = response.data;
 
-			if (response.ok) {
-				const newReply = await response.json();
-				setComments((prevComments) =>
-					prevComments.map((comment) =>
-						comment.id === commentId
-							? {
-									...comment,
-									replies: [
-										...(comment.replies || []),
-										newReply,
-									],
-								}
-							: comment,
-					),
-				);
-				setReplyContent("");
-				setShowReply(false);
-			}
+			setComments((prevComments) =>
+				prevComments.map((comment) =>
+					comment.id === commentId
+						? {
+								...comment,
+								replies: [...(comment.replies || []), newReply],
+							}
+						: comment,
+				),
+			);
+			setReplyContent("");
+			setShowReply(false);
 		} catch (error) {
 			console.error("Error posting reply:", error);
-			alert("Failed to post reply");
+			const errorMsg =
+				error.response?.data?.error || "Failed to post reply";
+			alert(errorMsg);
 		}
 	};
 

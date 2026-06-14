@@ -11,8 +11,7 @@ import {
 	FiSearch,
 	FiUser,
 } from "react-icons/fi";
-
-const API_URL = "http://127.0.0.1:5000";
+import { paymentAPI } from "../../lib/config/api";
 
 const Payments = () => {
 	const [payments, setPayments] = useState([]);
@@ -37,18 +36,16 @@ const Payments = () => {
 		try {
 			const token = localStorage.getItem("access_token");
 
-			const response = await fetch(`${API_URL}/payments`, {
-				headers: {
-					Authorization: `Bearer ${token}`,
-					"Content-Type": "application/json",
-				},
-			});
-
-			if (!response.ok) {
-				throw new Error("Failed to fetch payments");
+			if (!token) {
+				setError("Please login to view payments");
+				setLoading(false);
+				return;
 			}
 
-			const data = await response.json();
+			// paymentAPI.getAll() returns axios response - data is in response.data
+			const response = await paymentAPI.getAll();
+			const data = response.data;
+
 			const paymentsArray = Array.isArray(data) ? data : [];
 			setPayments(paymentsArray);
 
@@ -73,9 +70,14 @@ const Payments = () => {
 				totalAmount,
 				uniqueCustomers,
 			});
+			setError("");
 		} catch (err) {
 			console.error("Error fetching payments:", err);
-			setError(err.message || "Failed to load payments");
+			setError(
+				err.response?.data?.error ||
+					err.message ||
+					"Failed to load payments",
+			);
 		} finally {
 			setLoading(false);
 		}

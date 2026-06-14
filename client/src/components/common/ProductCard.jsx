@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiShoppingCart, FiHeart, FiCheck } from "react-icons/fi";
+import { productAPI } from "../../lib/config/api";
 
 const API_URL = "http://127.0.0.1:5000";
 
@@ -11,38 +12,104 @@ const ProductCard = ({ product, onAddToCart, addingToCartId }) => {
 	const [isLiking, setIsLiking] = useState(false);
 	const [currentUser, setCurrentUser] = useState(null);
 	const [addedToCart, setAddedToCart] = useState(false);
+	const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+	// Check authentication status
 	useEffect(() => {
+		const token = localStorage.getItem("access_token");
 		const user = localStorage.getItem("user");
-		if (user) {
+
+		if (token && user) {
+			setIsAuthenticated(true);
 			setCurrentUser(JSON.parse(user));
+		} else {
+			setIsAuthenticated(false);
+			setCurrentUser(null);
 		}
 	}, []);
 
+	// Only fetch like status if user is authenticated
 	useEffect(() => {
-		if (currentUser) {
+		if (isAuthenticated) {
 			fetchLikeStatus();
 		}
-	}, [id, currentUser]);
+	}, [id, isAuthenticated]);
 
 	const fetchLikeStatus = async () => {
 		const token = localStorage.getItem("access_token");
 		if (!token) return;
 
 		try {
-			const response = await fetch(`${API_URL}/products/${id}/likes`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const data = await response.json();
+			// const response = await fetch(`${API_URL}/products/${id}/likes`, {
+			// 	headers: { Authorization: `Bearer ${token}` },
+			// });
+			const response = await productAPI.getLikes(id);
+
+			// Handle 401 silently - just treat as not liked
+			if (response.status === 401) {
+				setLiked(false);
+				setLikesCount(0);
+				return;
+			}
+
+			// const data = await response.json();
+			const data = await response.data;
 			setLiked(data.liked || false);
 			setLikesCount(data.likes_count || 0);
 		} catch (error) {
 			console.error("Error fetching like status:", error);
+			// Don't show error to user - just treat as not liked
+			setLiked(false);
+			setLikesCount(0);
 		}
 	};
 
+	// const handleLikeToggle = async (e) => {
+	// 	e.preventDefault();
+	// 	e.stopPropagation();
+
+	// 	const token = localStorage.getItem("access_token");
+	// 	if (!token) {
+	// 		alert("Please login to like products");
+	// 		return;
+	// 	}
+
+	// 	if (isLiking) return;
+	// 	setIsLiking(true);
+
+	// 	const method = liked ? "DELETE" : "POST";
+
+	// 	try {
+	// 		// const response = await fetch(`${API_URL}/products/${id}/likes`, {
+	// 		// 	method,
+	// 		// 	headers: {
+	// 		// 		Authorization: `Bearer ${token}`,
+	// 		// 		"Content-Type": "application/json",
+	// 		// 	},
+	// 		// });
+	// 		await productAPI.unlike(id);
+
+	// 		if (response.status === 401) {
+	// 			alert("Session expired. Please login again.");
+	// 			localStorage.removeItem("access_token");
+	// 			localStorage.removeItem("user");
+	// 			setIsAuthenticated(false);
+	// 			return;
+	// 		}
+
+	// 		if (response.ok) {
+	// 			setLiked(!liked);
+	// 			setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+	// 		}
+	// 	} catch (error) {
+	// 		console.error("Error toggling like:", error);
+	// 	} finally {
+	// 		setIsLiking(false);
+	// 	}
+	// };
+
 	const handleLikeToggle = async (e) => {
-		e.preventDefault(); // Prevent navigation to product detail
+		e.preventDefault();
 		e.stopPropagation();
 
 		const token = localStorage.getItem("access_token");
@@ -54,21 +121,15 @@ const ProductCard = ({ product, onAddToCart, addingToCartId }) => {
 		if (isLiking) return;
 		setIsLiking(true);
 
-		const method = liked ? "DELETE" : "POST";
-
 		try {
-			const response = await fetch(`${API_URL}/products/${id}/likes`, {
-				method,
-				headers: {
-					Authorization: `Bearer ${token}`,
-					"Content-Type": "application/json",
-				},
-			});
-
-			if (response.ok) {
-				const data = await response.json();
-				setLiked(!liked);
-				setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+			if (liked) {
+				await productAPI.unlike(id);
+				setLiked(false);
+				setLikesCount(likesCount - 1);
+			} else {
+				await productAPI.like(id);
+				setLiked(true);
+				setLikesCount(likesCount + 1);
 			}
 		} catch (error) {
 			console.error("Error toggling like:", error);
@@ -78,7 +139,7 @@ const ProductCard = ({ product, onAddToCart, addingToCartId }) => {
 	};
 
 	const handleAddToCartClick = async (e) => {
-		e.preventDefault(); // Prevent navigation
+		e.preventDefault();
 		e.stopPropagation();
 
 		if (onAddToCart) {
@@ -126,28 +187,29 @@ const ProductCard = ({ product, onAddToCart, addingToCartId }) => {
 				</div>
 			</Link>
 
-			{/* Action Buttons */}
-			<div className="absolute top-2 left-2 flex gap-2">
-				{/* Like Button */}
-				<button
-					onClick={handleLikeToggle}
-					disabled={isLiking}
-					className={`bg-white rounded-full p-2 shadow-md hover:shadow-lg transition-all ${
-						liked
-							? "text-red-500"
-							: "text-gray-400 hover:text-red-500"
-					}`}
-				>
-					<FiHeart
-						className={`text-lg ${liked ? "fill-current" : ""}`}
-					/>
-					{likesCount > 0 && (
-						<span className="absolute -top-1 -right-1 bg-momma-pink text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-							{likesCount}
-						</span>
-					)}
-				</button>
-			</div>
+			{/* Action Buttons - Only show like button if authenticated */}
+			{isAuthenticated && (
+				<div className="absolute top-2 left-2 flex gap-2">
+					<button
+						onClick={handleLikeToggle}
+						disabled={isLiking}
+						className={`bg-white rounded-full p-2 shadow-md hover:shadow-lg transition-all ${
+							liked
+								? "text-red-500"
+								: "text-gray-400 hover:text-red-500"
+						}`}
+					>
+						<FiHeart
+							className={`text-lg ${liked ? "fill-current" : ""}`}
+						/>
+						{likesCount > 0 && (
+							<span className="absolute -top-1 -right-1 bg-momma-pink text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+								{likesCount}
+							</span>
+						)}
+					</button>
+				</div>
+			)}
 
 			{/* Add to Cart Button */}
 			<div className="px-4 pb-4">
